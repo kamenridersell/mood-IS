@@ -287,10 +287,13 @@
     </div>
     <div class="period-badge">
       <div class="role-badge" id="roleBadge"></div>
-      <div style="display:flex; gap:8px; margin-top:8px;">
+      <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; justify-content:flex-end;">
+        <button class="btn ghost small" id="pullCloudBtn">⬇ 從雲端載入</button>
+        <button class="btn ghost small" id="syncCloudBtn">⬆ 推送至雲端</button>
         <button class="btn ghost small" id="exportExcelBtn">匯出Excel</button>
         <button class="btn ghost small" id="logoutBtn">登出</button>
       </div>
+      <div class="footnote" id="cloudSyncStatus" style="margin-top:6px; text-align:right; max-width:320px;"></div>
     </div>
   </div>
 
@@ -452,25 +455,7 @@
 
     <!-- ---- 年度目標登錄 ---- -->
     <div class="subview active" id="sub-targets">
-      <div class="panel">
-        <div class="panel-title">雲端試算表雙向同步<span class="hint">系統 ↔ Google 試算表</span></div>
-        <div class="footnote" style="margin-bottom:12px;">
-          <b style="color:var(--gold-bright);">登入系統時，會先自動從雲端試算表讀取最新資料（PULL），覆蓋本機畫面</b>；之後任何資料異動（新增／編輯／刪除）會自動推送回雲端（PUSH），覆蓋試算表對應分頁。<br>
-          ⚠️ 這兩個方向都是「整頁覆蓋」，不是逐格合併：PUSH 會清空試算表分頁重寫，PULL 會清空本機資料重寫。若您打算直接在試算表手動編輯，請先按「從雲端載入」把最新內容拉進系統確認無誤，再繼續操作，避免兩邊資料互相覆蓋掉對方。
-        </div>
-        <div class="selector-row" style="margin-bottom:10px;">
-          <input type="text" id="cloudSyncUrl" value="https://script.google.com/macros/s/AKfycbw6waqqeDF2dVp1xYtfJdaW_rXjem63Lk3vAbqtVZgVMOOgxRyjo0S0302YwmAdTPE/exec" placeholder="貼上您的 Google Apps Script 網頁應用程式網址（https://script.google.com/macros/s/.../exec）" style="flex:1; min-width:280px;">
-        </div>
-        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-          <button class="btn ghost small" id="saveCloudUrlBtn">儲存網址</button>
-          <button class="btn ghost small" id="pullCloudBtn">⬇ 從雲端載入（覆蓋本機）</button>
-          <button class="btn" id="syncCloudBtn">⬆ 推送至雲端（覆蓋試算表）</button>
-          <span style="flex:1"></span>
-          <label class="switch"><input type="checkbox" id="autoSyncToggle"><span class="slider"></span></label>
-          <span style="font-size:12px;color:var(--muted)">額外每 5 分鐘定期推送（保險機制，非必要，僅在本頁面開啟時有效）</span>
-        </div>
-        <div class="footnote" id="cloudSyncStatus" style="margin-top:8px;"></div>
-      </div>
+      <input type="text" id="cloudSyncUrl" value="https://script.google.com/macros/s/AKfycbw6waqqeDF2dVp1xYtfJdaW_rXjem63Lk3vAbqtVZgVMOOgxRyjo0S0302YwmAdTPE/exec" style="display:none;">
       <div class="panel">
         <div class="panel-title">年度營業收入目標<span class="hint">呈現於營業收入趨勢圖（橘線）</span></div>
         <div class="selector-row" style="margin-bottom:14px;">
@@ -1944,17 +1929,14 @@ async function pullFromCloud(silent){
   }
 }
 
-// 每次資料異動（新增/編輯/刪除）後自動觸發，不需使用者手動按同步
+// ⚠️ 自動同步已停用（曾造成資料被定期清空的問題），改為只保留手動推送/讀取按鈕。
+// 此函式保留但不再做任何事，避免其他地方呼叫時出錯。
 function scheduleAutoSyncOnChange(){
-  if(suppressAutoSync) return; // PULL 期間暫停，避免拉取後立刻又推送
-  if(!state.settings.cloudSyncUrl) return; // 尚未設定同步網址，不做任何事
-  clearTimeout(changeSyncDebounce);
-  changeSyncDebounce = setTimeout(()=>{ syncToCloud(true); }, CHANGE_SYNC_DELAY_MS);
+  return; // 已停用：資料異動不再自動推送，請使用「⬆ 推送至雲端」按鈕手動觸發
 }
 
 function startAutoSync(){
-  stopAutoSync();
-  autoSyncTimer = setInterval(()=>{ syncToCloud(true); }, AUTO_SYNC_INTERVAL_MS);
+  return; // 已停用：不再提供定期自動同步
 }
 function stopAutoSync(){
   if(autoSyncTimer){ clearInterval(autoSyncTimer); autoSyncTimer = null; }
@@ -2086,10 +2068,6 @@ async function confirmImportRows(){
 /* ---------- init selects ---------- */
 function refreshAllSelectors(){
   document.getElementById('cloudSyncUrl').value = state.settings.cloudSyncUrl || '';
-  document.getElementById('autoSyncToggle').checked = !!state.settings.autoSyncEnabled;
-  if(state.settings.autoSyncEnabled && state.settings.cloudSyncUrl){
-    startAutoSync();
-  }
 
   const dy=document.getElementById('dashYear').value || 2026, dm=document.getElementById('dashMonth').value || new Date().getMonth()+1;
   document.getElementById('dashYear').innerHTML = yearOptions(dy);
@@ -2397,9 +2375,8 @@ async function logout(){
 
 async function boot(){
   await loadAll();
-  if(state.settings.cloudSyncUrl){
-    await pullFromCloud(true); // 登入時先從雲端讀取最新資料，避免用本機舊資料覆蓋雲端
-  }
+  // ⚠️ 已停用登入時自動讀取雲端資料（曾造成資料被定期清空的問題）。
+  // 如需從雲端載入最新資料，請至【資料登錄】→【年度目標登錄】頁手動按「⬇ 從雲端載入」。
   refreshAllSelectors();
   if(!eventsBound){ bindEvents(); eventsBound = true; }
   applyRolePermissions();
@@ -2409,25 +2386,8 @@ document.getElementById('loginBtn').addEventListener('click', attemptLogin);
 document.getElementById('loginPassword').addEventListener('keydown', (e)=>{ if(e.key==='Enter') attemptLogin(); });
 document.getElementById('logoutBtn').addEventListener('click', logout);
 document.getElementById('exportExcelBtn').addEventListener('click', exportAllDataToExcel);
-document.getElementById('saveCloudUrlBtn').addEventListener('click', async ()=>{
-  suppressAutoSync = true; // 避免「儲存網址」本身觸發的存檔動作又排程一次推送，與接下來的讀取互相干擾
-  try{
-    state.settings.cloudSyncUrl = document.getElementById('cloudSyncUrl').value.trim();
-    await saveSettings();
-  } finally {
-    suppressAutoSync = false;
-  }
-  clearTimeout(changeSyncDebounce); // 保險起見取消任何殘留的排程推送
-  showToast('已儲存同步網址，正在從雲端讀取現有資料...');
-  if(state.settings.cloudSyncUrl) pullFromCloud(false); // 儲存網址時預設「讀取」而非「推送」，避免覆蓋掉試算表既有資料
-});
 document.getElementById('pullCloudBtn').addEventListener('click', ()=> pullFromCloud(false));
 document.getElementById('syncCloudBtn').addEventListener('click', ()=> syncToCloud(false));
-document.getElementById('autoSyncToggle').addEventListener('change', async (e)=>{
-  state.settings.autoSyncEnabled = e.target.checked;
-  await saveSettings();
-  if(e.target.checked){ startAutoSync(); } else { stopAutoSync(); document.getElementById('cloudSyncStatus').textContent = '自動同步已關閉'; }
-});
 document.getElementById('loginPassword').focus();
 </script>
 </body>
