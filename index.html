@@ -455,7 +455,7 @@
 
     <!-- ---- 年度目標登錄 ---- -->
     <div class="subview active" id="sub-targets">
-      <input type="text" id="cloudSyncUrl" value="https://script.google.com/macros/s/AKfycbw6waqqeDF2dVp1xYtfJdaW_rXjem63Lk3vAbqtVZgVMOOgxRyjo0S0302YwmAdTPE/exec" style="display:none;">
+      <input type="text" id="cloudSyncUrl" value="https://script.google.com/macros/s/AKfycbydzDr3ED1w1cyNAygrtsKF89Mn0W_sQPWBaI969TJwheCphE6qiz2FGXB5byZOPTNwsA/exec" style="display:none;">
       <div class="panel">
         <div class="panel-title">年度營業收入目標<span class="hint">呈現於營業收入趨勢圖（橘線）</span></div>
         <div class="selector-row" style="margin-bottom:14px;">
@@ -764,7 +764,7 @@ const EXPLICIT_PL_CODES = new Set([
   "6801","6802","6803","6805","6806","6807",
 ]);
 
-const DEFAULT_CLOUD_SYNC_URL = "https://script.google.com/macros/s/AKfycbw6waqqeDF2dVp1xYtfJdaW_rXjem63Lk3vAbqtVZgVMOOgxRyjo0S0302YwmAdTPE/exec";
+const DEFAULT_CLOUD_SYNC_URL = "https://script.google.com/macros/s/AKfycbydzDr3ED1w1cyNAygrtsKF89Mn0W_sQPWBaI969TJwheCphE6qiz2FGXB5byZOPTNwsA/exec";
 
 let state = {
   entries: [],
@@ -793,7 +793,7 @@ async function loadAll(){
   try{ const t = await window.storage.get('pl:annualTargets'); state.annualTargets = t ? JSON.parse(t.value) : {}; }catch(err){ state.annualTargets = {}; }
   try{ const s = await window.storage.get('pl:settings'); state.settings = s ? JSON.parse(s.value) : { rate:1.5, taxMonths:{}, publishedMonths:{}, cloudSyncUrl:DEFAULT_CLOUD_SYNC_URL }; }catch(err){ state.settings = { rate:1.5, taxMonths:{}, publishedMonths:{}, cloudSyncUrl:DEFAULT_CLOUD_SYNC_URL }; }
   if(!state.settings.publishedMonths) state.settings.publishedMonths = {};
-  if(!state.settings.cloudSyncUrl) state.settings.cloudSyncUrl = DEFAULT_CLOUD_SYNC_URL;
+  state.settings.cloudSyncUrl = DEFAULT_CLOUD_SYNC_URL; // 網址已改為純寫死在程式碼中，一律以此為準，避免舊版存檔殘留造成不一致
 
   try{
     const a = await window.storage.get('pl:accounts');
