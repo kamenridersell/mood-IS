@@ -453,6 +453,23 @@
     <!-- ---- 年度目標登錄 ---- -->
     <div class="subview active" id="sub-targets">
       <div class="panel">
+        <div class="panel-title">雲端試算表同步<span class="hint">將系統資料同步寫入您的 Google 試算表</span></div>
+        <div class="footnote" style="margin-bottom:12px;">
+          設定好網址並儲存後，<b style="color:var(--gold-bright);">之後任何資料異動（新增／編輯／刪除）都會自動於背景同步</b>，不需手動點擊。此系統無後端資料庫，資料存放於您瀏覽器本機；串接方式是透過一個免費的 Google Apps Script 接收端點，本系統以 POST 方式送出資料，詳細設定步驟請見對話中的說明。
+        </div>
+        <div class="selector-row" style="margin-bottom:10px;">
+          <input type="text" id="cloudSyncUrl" placeholder="貼上您的 Google Apps Script 網頁應用程式網址（https://script.google.com/macros/s/.../exec）" style="flex:1; min-width:280px;">
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+          <button class="btn ghost small" id="saveCloudUrlBtn">儲存網址</button>
+          <button class="btn ghost small" id="syncCloudBtn">立即手動同步</button>
+          <span style="flex:1"></span>
+          <label class="switch"><input type="checkbox" id="autoSyncToggle"><span class="slider"></span></label>
+          <span style="font-size:12px;color:var(--muted)">額外每 5 分鐘定期同步（保險機制，非必要，僅在本頁面開啟時有效）</span>
+        </div>
+        <div class="footnote" id="cloudSyncStatus" style="margin-top:8px;"></div>
+      </div>
+      <div class="panel">
         <div class="panel-title">年度營業收入目標<span class="hint">呈現於營業收入趨勢圖（橘線）</span></div>
         <div class="selector-row" style="margin-bottom:14px;">
           <label>設定年度</label>
@@ -803,12 +820,12 @@ async function loadAll(){
     state.accounts = DEFAULT_ACCOUNTS.map(x=>({...x}));
   }
 }
-async function saveEntries(){ try{ await window.storage.set('pl:entries', JSON.stringify(state.entries)); }catch(e){ console.error(e); } }
-async function saveInventory(){ try{ await window.storage.set('pl:inventory', JSON.stringify(state.inventory)); }catch(e){ console.error(e); } }
-async function saveAccounts(){ try{ await window.storage.set('pl:accounts', JSON.stringify(state.accounts)); }catch(e){ console.error(e); } }
-async function saveBrandProducts(){ try{ await window.storage.set('pl:brandProducts', JSON.stringify(state.brandProducts)); }catch(e){ console.error(e); } }
-async function saveAnnualTargets(){ try{ await window.storage.set('pl:annualTargets', JSON.stringify(state.annualTargets)); }catch(e){ console.error(e); } }
-async function saveSettings(){ try{ await window.storage.set('pl:settings', JSON.stringify(state.settings)); }catch(e){ console.error(e); } }
+async function saveEntries(){ try{ await window.storage.set('pl:entries', JSON.stringify(state.entries)); }catch(e){ console.error(e); } scheduleAutoSyncOnChange(); }
+async function saveInventory(){ try{ await window.storage.set('pl:inventory', JSON.stringify(state.inventory)); }catch(e){ console.error(e); } scheduleAutoSyncOnChange(); }
+async function saveAccounts(){ try{ await window.storage.set('pl:accounts', JSON.stringify(state.accounts)); }catch(e){ console.error(e); } scheduleAutoSyncOnChange(); }
+async function saveBrandProducts(){ try{ await window.storage.set('pl:brandProducts', JSON.stringify(state.brandProducts)); }catch(e){ console.error(e); } scheduleAutoSyncOnChange(); }
+async function saveAnnualTargets(){ try{ await window.storage.set('pl:annualTargets', JSON.stringify(state.annualTargets)); }catch(e){ console.error(e); } scheduleAutoSyncOnChange(); }
+async function saveSettings(){ try{ await window.storage.set('pl:settings', JSON.stringify(state.settings)); }catch(e){ console.error(e); } scheduleAutoSyncOnChange(); }
 
 
 /* ---------- computation: single month ---------- */
@@ -1773,6 +1790,70 @@ function exportAllDataToExcel(){
   showToast('已匯出 Excel 檔案，請至瀏覽器下載項目查看');
 }
 
+/* ---------- 雲端試算表同步 ---------- */
+function buildCloudSyncPayload(){
+  return {
+    exportedAt: new Date().toISOString(),
+    entries: state.entries.map(e=>{
+      const acc = findAccount(e.code) || {};
+      return { year:e.year, month:e.month, day:e.day, code:e.code, accName:acc.name||'', type:acc.type||'', amount:Number(e.amount)||0, note:e.note||'' };
+    }),
+    inventory: state.inventory.map(i=>{
+      const acc = findAccount(i.code) || {};
+      const cost = (Number(i.open)||0)+(Number(i.purchase)||0)-(Number(i.close)||0);
+      return { year:i.year, month:i.month, code:i.code, accName:acc.name||'', open:Number(i.open)||0, purchase:Number(i.purchase)||0, close:Number(i.close)||0, cost };
+    }),
+    brandProducts: state.brandProducts.map(p=>({
+      category:p.category||'', code:p.code||'', name:p.name||'', unitCost:Number(p.unitCost)||0,
+      unitsPerBox:p.unitsPerBox||'', boxesPerCarton:p.boxesPerCarton||'', manufacturer:p.manufacturer||'', manufacturerAddress:p.manufacturerAddress||''
+    })),
+    accounts: state.accounts.map(a=>({ code:a.code, name:a.name, type:a.type, group:(GROUPS.find(g=>g.key===a.group)||{}).label||a.group, note:a.note||'' })),
+    annualTargets: state.annualTargets,
+    publishedMonths: state.settings.publishedMonths || {}
+  };
+}
+
+let autoSyncTimer = null;
+const AUTO_SYNC_INTERVAL_MS = 5 * 60 * 1000; // 5 分鐘（備援用的定期同步，非必要）
+let changeSyncDebounce = null;
+const CHANGE_SYNC_DELAY_MS = 2000; // 資料異動後，等待2秒無其他異動再同步，避免連續操作時瘋狂發送請求
+
+async function syncToCloud(silent){
+  const url = (state.settings.cloudSyncUrl || document.getElementById('cloudSyncUrl').value || '').trim();
+  const statusEl = document.getElementById('cloudSyncStatus');
+  if(!url){ if(!silent) showToast('請先貼上您的 Google Apps Script 網址並儲存'); return; }
+  if(statusEl) statusEl.textContent = '同步中...';
+  try{
+    await fetch(url, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(buildCloudSyncPayload())
+    });
+    const timeStr = new Date().toLocaleString('zh-TW');
+    if(statusEl) statusEl.textContent = `資料已於 ${timeStr} 自動同步（因跨網域限制無法讀取伺服器回應，請至您的 Google 試算表確認資料是否已更新）`;
+    if(!silent) showToast('已送出同步請求，請至試算表確認');
+  }catch(err){
+    if(statusEl) statusEl.textContent = '同步失敗，請確認網址是否正確、Apps Script 是否已部署為「任何人皆可存取」';
+    if(!silent) showToast('同步失敗');
+  }
+}
+
+// 每次資料異動（新增/編輯/刪除）後自動觸發，不需使用者手動按同步
+function scheduleAutoSyncOnChange(){
+  if(!state.settings.cloudSyncUrl) return; // 尚未設定同步網址，不做任何事
+  clearTimeout(changeSyncDebounce);
+  changeSyncDebounce = setTimeout(()=>{ syncToCloud(true); }, CHANGE_SYNC_DELAY_MS);
+}
+
+function startAutoSync(){
+  stopAutoSync();
+  autoSyncTimer = setInterval(()=>{ syncToCloud(true); }, AUTO_SYNC_INTERVAL_MS);
+}
+function stopAutoSync(){
+  if(autoSyncTimer){ clearInterval(autoSyncTimer); autoSyncTimer = null; }
+}
+
 function handleImportFile(file){
   const defYear = document.getElementById('impYear').value;
   const defMonth = document.getElementById('impMonth').value;
@@ -1898,6 +1979,12 @@ async function confirmImportRows(){
 
 /* ---------- init selects ---------- */
 function refreshAllSelectors(){
+  document.getElementById('cloudSyncUrl').value = state.settings.cloudSyncUrl || '';
+  document.getElementById('autoSyncToggle').checked = !!state.settings.autoSyncEnabled;
+  if(state.settings.autoSyncEnabled && state.settings.cloudSyncUrl){
+    startAutoSync();
+  }
+
   const dy=document.getElementById('dashYear').value || 2026, dm=document.getElementById('dashMonth').value || new Date().getMonth()+1;
   document.getElementById('dashYear').innerHTML = yearOptions(dy);
   document.getElementById('dashMonth').innerHTML = monthOptions(dm);
@@ -2193,6 +2280,7 @@ async function attemptLogin(){
 async function logout(){
   const ok = await showConfirm('確定要登出嗎？', {okLabel:"登出"});
   if(!ok) return;
+  stopAutoSync();
   currentRole = null;
   document.getElementById('appRoot').style.display = 'none';
   document.getElementById('loginOverlay').style.display = 'flex';
@@ -2212,6 +2300,18 @@ document.getElementById('loginBtn').addEventListener('click', attemptLogin);
 document.getElementById('loginPassword').addEventListener('keydown', (e)=>{ if(e.key==='Enter') attemptLogin(); });
 document.getElementById('logoutBtn').addEventListener('click', logout);
 document.getElementById('exportExcelBtn').addEventListener('click', exportAllDataToExcel);
+document.getElementById('saveCloudUrlBtn').addEventListener('click', async ()=>{
+  state.settings.cloudSyncUrl = document.getElementById('cloudSyncUrl').value.trim();
+  await saveSettings();
+  showToast('已儲存同步網址，之後資料異動將自動同步');
+  if(state.settings.cloudSyncUrl) syncToCloud(false);
+});
+document.getElementById('syncCloudBtn').addEventListener('click', ()=> syncToCloud(false));
+document.getElementById('autoSyncToggle').addEventListener('change', async (e)=>{
+  state.settings.autoSyncEnabled = e.target.checked;
+  await saveSettings();
+  if(e.target.checked){ startAutoSync(); } else { stopAutoSync(); document.getElementById('cloudSyncStatus').textContent = '自動同步已關閉'; }
+});
 document.getElementById('loginPassword').focus();
 </script>
 </body>
