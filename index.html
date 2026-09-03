@@ -1852,8 +1852,12 @@ async function pullFromCloud(silent){
   if(!url) return false;
   if(statusEl) statusEl.textContent = '讀取中（雲端 → 本機）...';
   try{
-    const sep = url.includes('?') ? '&' : '?';
-    const res = await fetch(url + sep + 'action=pull', { method: 'GET' });
+    // 改用 POST 送出讀取請求（與推送用同一種已驗證可靠的請求方式），避免 GET+查詢字串偶發的連線問題
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // 使用 text/plain 避免觸發瀏覽器的 CORS 預檢請求
+      body: JSON.stringify({ action: 'pull' })
+    });
     if(!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
     if(data.status === 'error') throw new Error(data.message || '雲端回傳錯誤');
