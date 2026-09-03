@@ -233,32 +233,63 @@
   /* 年度營業總表：圖表文字與標題放大20% */
   #sub-annualReport .panel-title{ font-size:16.8px; }
 
+  /* 圖表（SVG）容器：內容不縮小到看不清楚，改為允許橫向捲動 */
+  .panel:has(svg){ overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  .panel:has(table){ overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  .panel:has(table) table{ min-width:560px; }
+
   @media (max-width: 640px){
-    .app{ padding:16px 12px 40px; }
+    .app{ padding:14px 10px 40px; }
     .app-header{ flex-direction:column; align-items:flex-start; gap:12px; }
     .period-badge{ text-align:left; width:100%; }
-    .kpi-grid{ grid-template-columns: 1fr; }
+    .kpi-grid{ grid-template-columns: 1fr 1fr; gap:8px; }
+    .kpi{ padding:12px 10px; }
+    .kpi .label{ font-size:10.5px; }
+    .kpi .value{ font-size:16px; }
     .form-grid{ grid-template-columns: 1fr; }
-    .panel{ padding:16px 14px; }
+    .panel{ padding:14px 12px; margin-bottom:14px; }
     .subtabs{ overflow-x:auto; -webkit-overflow-scrolling:touch; flex-wrap:nowrap; }
     .subtab{ white-space:nowrap; }
     .selector-row{ gap:8px; }
     #targetMonthInputs{ grid-template-columns: repeat(3,1fr) !important; }
-    .brand-text h1{ font-size:20px; }
-    .tab{ font-size:13.5px; padding:9px 12px; }
-    .subtab{ font-size:11.5px; padding:6px 12px; }
-    .panel-title{ font-size:13px; }
+    .brand-text h1{ font-size:19px; }
+    .brand-text p{ font-size:9px; }
+    .tab{ font-size:13px; padding:8px 11px; }
+    .subtab{ font-size:11px; padding:6px 11px; }
+    .panel-title{ font-size:13px; margin-bottom:10px; }
     #sub-annualReport .panel-title{ font-size:14px; }
     .stat-strip{ gap:12px; flex-wrap:wrap; }
     .toolbar{ flex-direction:column; align-items:flex-start; }
-    .login-box{ padding:24px 20px; }
+    .login-box{ padding:22px 18px; }
+
+    /* 表格：字級與留白重新調整，兼顧可讀性與是否需要橫向捲動 */
+    table{ font-size:12.5px; }
+    thead th{ padding:7px 6px; font-size:10px; }
+    tbody td{ padding:7px 6px; }
+    .panel:has(table){ overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    .panel:has(table) table{ min-width:480px; }
+
+    /* 圖表：維持內部文字清晰可讀的最小寬度，用橫向捲動取代硬擠壓縮小 */
+    .panel:has(svg) svg{ min-width:640px; }
+
+    /* 按鈕與輸入框：加大觸控區域，方便手機點按 */
+    .btn{ padding:10px 16px; font-size:13px; }
+    .btn.small{ padding:8px 13px; font-size:12px; }
+    select, input[type=number], input[type=text], input[type=date], input[type=password]{
+      padding:10px 10px; font-size:13px;
+    }
+
+    .code-pill{ font-size:10.5px; }
+    .tag{ font-size:9.5px; padding:2px 7px; }
   }
   @media (max-width: 420px){
     #targetMonthInputs{ grid-template-columns: repeat(2,1fr) !important; }
+    .kpi-grid{ grid-template-columns: 1fr; }
     .kpi .value{ font-size:17px; }
+    .panel:has(table) table{ min-width:420px; }
+    .panel:has(svg) svg{ min-width:560px; }
+    .brand-text h1{ font-size:17px; }
   }
-  .panel:has(table){ overflow-x:auto; -webkit-overflow-scrolling:touch; }
-  .panel:has(table) table{ min-width:560px; }
 </style>
 </head>
 
@@ -455,7 +486,7 @@
 
     <!-- ---- 年度目標登錄 ---- -->
     <div class="subview active" id="sub-targets">
-      <input type="text" id="cloudSyncUrl" value="https://script.google.com/macros/s/AKfycbydzDr3ED1w1cyNAygrtsKF89Mn0W_sQPWBaI969TJwheCphE6qiz2FGXB5byZOPTNwsA/exec" style="display:none;">
+      <input type="text" id="cloudSyncUrl" value="https://script.google.com/macros/s/AKfycbwHmSiOCy5yvpApqtigOX11a4jVn18dyXei_JEG7mIAszkOpwr1ZLphQb7Unh4R40o0Kg/exec" style="display:none;">
       <div class="panel">
         <div class="panel-title">年度營業收入目標<span class="hint">呈現於營業收入趨勢圖（橘線）</span></div>
         <div class="selector-row" style="margin-bottom:14px;">
@@ -764,7 +795,7 @@ const EXPLICIT_PL_CODES = new Set([
   "6801","6802","6803","6805","6806","6807",
 ]);
 
-const DEFAULT_CLOUD_SYNC_URL = "https://script.google.com/macros/s/AKfycbydzDr3ED1w1cyNAygrtsKF89Mn0W_sQPWBaI969TJwheCphE6qiz2FGXB5byZOPTNwsA/exec";
+const DEFAULT_CLOUD_SYNC_URL = "https://script.google.com/macros/s/AKfycbwHmSiOCy5yvpApqtigOX11a4jVn18dyXei_JEG7mIAszkOpwr1ZLphQb7Unh4R40o0Kg/exec";
 
 let state = {
   entries: [],
@@ -1837,12 +1868,10 @@ async function pullFromCloud(silent){
   if(!url) return false;
   if(statusEl) statusEl.textContent = '讀取中（雲端 → 本機）...';
   try{
-    // 改用 POST 送出讀取請求（與推送用同一種已驗證可靠的請求方式），避免 GET+查詢字串偶發的連線問題
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // 使用 text/plain 避免觸發瀏覽器的 CORS 預檢請求
-      body: JSON.stringify({ action: 'pull' })
-    });
+    // 改回 GET 請求：doGet() 這個函式在後端完全不會呼叫任何寫入/清空操作，
+    // 讀取路徑與推送路徑（doPost）在程式碼層級完全分離，結構上不可能因為讀取而清空試算表。
+    const sep = url.includes('?') ? '&' : '?';
+    const res = await fetch(url + sep + 'action=pull', { method: 'GET' });
     if(!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
     if(data.status === 'error') throw new Error(data.message || '雲端回傳錯誤');
