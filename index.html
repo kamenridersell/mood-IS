@@ -459,7 +459,7 @@
           ⚠️ 這兩個方向都是「整頁覆蓋」，不是逐格合併：PUSH 會清空試算表分頁重寫，PULL 會清空本機資料重寫。若您打算直接在試算表手動編輯，請先按「從雲端載入」把最新內容拉進系統確認無誤，再繼續操作，避免兩邊資料互相覆蓋掉對方。
         </div>
         <div class="selector-row" style="margin-bottom:10px;">
-          <input type="text" id="cloudSyncUrl" value="https://script.google.com/macros/s/AKfycbwMU6aR3V3OyMtHCPUmWLBEW-M1rRMlnMivPd67_jbI9bHDJpiEVf99tKXP-kpxgU8Yrw/exec" placeholder="貼上您的 Google Apps Script 網頁應用程式網址（https://script.google.com/macros/s/.../exec）" style="flex:1; min-width:280px;">
+          <input type="text" id="cloudSyncUrl" value="https://script.google.com/macros/s/AKfycbw6waqqeDF2dVp1xYtfJdaW_rXjem63Lk3vAbqtVZgVMOOgxRyjo0S0302YwmAdTPE/exec" placeholder="貼上您的 Google Apps Script 網頁應用程式網址（https://script.google.com/macros/s/.../exec）" style="flex:1; min-width:280px;">
         </div>
         <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
           <button class="btn ghost small" id="saveCloudUrlBtn">儲存網址</button>
@@ -779,7 +779,7 @@ const EXPLICIT_PL_CODES = new Set([
   "6801","6802","6803","6805","6806","6807",
 ]);
 
-const DEFAULT_CLOUD_SYNC_URL = "https://script.google.com/macros/s/AKfycbwMU6aR3V3OyMtHCPUmWLBEW-M1rRMlnMivPd67_jbI9bHDJpiEVf99tKXP-kpxgU8Yrw/exec";
+const DEFAULT_CLOUD_SYNC_URL = "https://script.google.com/macros/s/AKfycbw6waqqeDF2dVp1xYtfJdaW_rXjem63Lk3vAbqtVZgVMOOgxRyjo0S0302YwmAdTPE/exec";
 
 let state = {
   entries: [],
