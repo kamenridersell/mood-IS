@@ -1,0 +1,2321 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<title>MOOD 損益表系統</title>
+<style>
+  :root{
+    --bg:#14120F;
+    --bg-panel:#1D1A16;
+    --bg-panel-2:#242019;
+    --gold:#C9A24B;
+    --gold-bright:#E7C77A;
+    --ivory:#F3ECDD;
+    --muted:#9C9184;
+    --line: rgba(201,162,75,0.22);
+    --income:#5C9E7A;
+    --income-bg: rgba(92,158,122,0.12);
+    --expense:#B5714B;
+    --expense-bg: rgba(181,113,75,0.12);
+    --danger:#C1584A;
+    --radius: 10px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background: radial-gradient(1200px 800px at 10% -10%, #221D16 0%, var(--bg) 55%);
+    color: var(--ivory);
+    font-family: -apple-system, "PingFang TC", "Microsoft JhengHei", "Noto Sans TC", sans-serif;
+    min-height:100vh;
+  }
+  .display{ font-family: "Noto Serif TC", "PMingLiU", serif; }
+
+  .app{ max-width:1180px; margin:0 auto; padding: 28px 20px 60px; }
+
+  /* login */
+  .login-overlay{
+    position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
+    background: radial-gradient(1200px 800px at 10% -10%, #221D16 0%, var(--bg) 55%);
+    z-index:2000;
+  }
+  .login-box{
+    width:340px; max-width:90vw; background:linear-gradient(180deg, var(--bg-panel), var(--bg-panel-2));
+    border:1px solid var(--line); border-radius:14px; padding:32px 28px; text-align:center;
+  }
+  .login-box h1{ font-size:19px; margin:0 0 4px; letter-spacing:1px; }
+  .login-box input{ width:100%; text-align:center; letter-spacing:3px; margin-bottom:14px; }
+
+  /* header */
+  .app-header{
+    display:flex; align-items:flex-end; justify-content:space-between;
+    padding-bottom:18px; margin-bottom:22px;
+    border-bottom: 1px solid var(--line);
+  }
+  .brand-mark{
+    display:flex; align-items:center; gap:14px;
+  }
+  .brand-ring{
+    width:44px;height:44px;border-radius:50%;
+    border:1.5px solid var(--gold);
+    display:flex;align-items:center;justify-content:center;
+    color:var(--gold-bright); font-family:"Noto Serif TC",serif; font-size:18px;
+    flex-shrink:0;
+  }
+  .brand-text h1{
+    font-size:25px; margin:0; font-weight:600; letter-spacing:1px;
+  }
+  .brand-text p{ margin:2px 0 0; font-size:12px; color:var(--muted); letter-spacing:2px; }
+  .period-badge{
+    text-align:right; font-size:12px; color:var(--muted);
+  }
+  .period-badge b{ color:var(--gold-bright); font-size:15px; font-weight:600; display:block; margin-bottom:2px;}
+  .role-badge{ margin-top:6px; font-size:11px; color:var(--gold-bright); letter-spacing:.5px; }
+
+  /* tabs */
+  .tabs{ display:flex; gap:4px; margin-bottom:20px; border-bottom:1px solid var(--line); overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  .tab{
+    padding:11px 18px; font-size:16.2px; color:var(--muted); cursor:pointer;
+    border-bottom:2px solid transparent; transition: all .15s ease; user-select:none;
+    letter-spacing:.5px; white-space:nowrap; font-weight:700;
+  }
+  .tab:hover{ color:var(--ivory); }
+  .tab.active{ color:var(--gold-bright); border-bottom-color: var(--gold); }
+
+  .subtabs{ display:flex; gap:4px; margin-bottom:18px; }
+  .subtab{
+    padding:7px 16px; font-size:12.5px; color:var(--muted); cursor:pointer;
+    border:1px solid var(--line); border-radius:20px; transition: all .15s ease; user-select:none;
+    font-weight:700;
+  }
+  .subtab:hover{ color:var(--ivory); border-color:var(--gold); }
+  .subtab.active{ color:#20180B; background:var(--gold-bright); border-color:var(--gold-bright); font-weight:700; }
+
+  .view{ display:none; animation: fadein .25s ease; }
+  .view.active{ display:block; }
+  .subview{ display:none; animation: fadein .25s ease; }
+  .subview.active{ display:block; }
+  @keyframes fadein{ from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:none;} }
+
+  .panel{
+    background: linear-gradient(180deg, var(--bg-panel), var(--bg-panel-2));
+    border:1px solid var(--line);
+    border-radius: var(--radius);
+    padding:20px 22px;
+    margin-bottom:18px;
+  }
+  .panel-title{
+    font-size:14px; font-weight:600; letter-spacing:1px; color:var(--gold-bright);
+    margin:0 0 14px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:6px;
+  }
+  .panel-title .hint{ font-size:11.5px; color:var(--muted); font-weight:400; letter-spacing:0; }
+
+  /* dashboard */
+  .selector-row{ display:flex; gap:10px; align-items:center; margin-bottom:18px; flex-wrap:wrap; }
+  .selector-row label{ font-size:12px; color:var(--muted); margin-right:4px;}
+  select, input[type=number], input[type=text], input[type=date], input[type=password]{
+    background: #0F0D0B; border:1px solid var(--line); color:var(--ivory);
+    padding:8px 10px; border-radius:7px; font-size:13px; outline:none;
+    font-family:inherit;
+  }
+  select:focus, input:focus{ border-color:var(--gold); }
+
+  .kpi-grid{ display:grid; grid-template-columns: repeat(5, 1fr); gap:12px; margin-bottom:18px;}
+  .kpi{
+    background:#100E0B; border:1px solid var(--line); border-radius:var(--radius);
+    padding:16px 14px; position:relative; overflow:hidden;
+  }
+  .kpi .label{ font-size:11.5px; color:var(--muted); letter-spacing:.5px; margin-bottom:8px;}
+  .kpi .value{ font-size:20px; font-weight:700; font-family:"Noto Serif TC",serif; }
+  .kpi .sub{ font-size:11px; color:var(--muted); margin-top:4px;}
+  .kpi.gold .value{ color:var(--gold-bright); }
+  .kpi.pos .value{ color:var(--income); }
+  .kpi.neg .value{ color:var(--danger); }
+
+  .dot{ display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; }
+
+  table{ width:100%; border-collapse:collapse; font-size:13px; }
+  thead th{
+    text-align:left; font-size:11px; letter-spacing:.5px; color:var(--muted);
+    padding:8px 10px; border-bottom:1px solid var(--line); font-weight:600;
+  }
+  thead th.sortable{ cursor:pointer; user-select:none; }
+  thead th.sortable:hover{ color:var(--ivory); }
+  thead th.sortable .sort-arrow{ margin-left:3px; color:var(--gold-bright); }
+  tbody td{ padding:8px 10px; border-bottom:1px solid rgba(255,255,255,0.04); }
+  tbody tr:hover{ background: rgba(201,162,75,0.05); }
+  .num{ text-align:right; font-variant-numeric: tabular-nums; }
+  .section-row td{
+    font-weight:700; color:var(--gold-bright); background: rgba(201,162,75,0.07);
+    letter-spacing:.5px; padding-top:12px; padding-bottom:6px;
+  }
+  .sub-row td{ padding-left:22px; color:var(--muted); }
+  .sub-sub-row td{ padding-left:40px; color:var(--muted); font-style:italic; }
+  .subtotal-row td{
+    font-weight:700; border-top:1px solid var(--line); border-bottom:1px solid var(--line);
+    background: rgba(255,255,255,0.02);
+  }
+  .hero-row td{
+    font-weight:700; font-size:15px; padding-top:14px; padding-bottom:14px;
+  }
+  .hero-row.final td{ color:var(--gold-bright); font-size:17px; border-top:1.5px solid var(--gold); }
+  .deduct{ color:#E5473D; font-weight:600; }
+
+  /* forms */
+  .form-grid{ display:grid; grid-template-columns: 90px 70px 60px 1fr 140px 1fr auto; gap:10px; align-items:end; }
+  .form-grid .field label{ display:block; font-size:11px; color:var(--muted); margin-bottom:5px; letter-spacing:.5px;}
+  .form-grid select, .form-grid input{ width:100%; }
+  .field label{ display:block; font-size:11px; color:var(--muted); margin-bottom:5px; letter-spacing:.5px;}
+  .field input, .field select{ width:100%; box-sizing:border-box; }
+  #targetMonthInputs{ display:grid; grid-template-columns: repeat(4,1fr); gap:12px; }
+  .btn{
+    background: linear-gradient(180deg, var(--gold-bright), var(--gold));
+    color:#20180B; border:none; padding:9px 18px; border-radius:7px;
+    font-weight:700; font-size:13px; cursor:pointer; letter-spacing:.5px;
+    transition: filter .15s ease; white-space:nowrap;
+  }
+  .btn:hover{ filter:brightness(1.08); }
+  .btn:disabled{ opacity:.4; cursor:not-allowed; filter:none; }
+  .btn.ghost{
+    background:transparent; border:1px solid var(--line); color:var(--muted); font-weight:600;
+  }
+  .btn.ghost:hover{ color:var(--ivory); border-color:var(--gold); }
+  .btn.danger-txt{ background:transparent; border:none; color:var(--danger); font-weight:600; cursor:pointer; padding:4px 8px;}
+  .btn.danger-txt:hover{ text-decoration:underline; }
+  .btn.small{ padding:6px 12px; font-size:12px; }
+
+  .tag{
+    display:inline-block; font-size:10.5px; padding:2px 8px; border-radius:20px; font-weight:600; letter-spacing:.3px;
+  }
+  .tag.income{ background:var(--income-bg); color:var(--income); }
+  .tag.expense{ background:var(--expense-bg); color:var(--expense); }
+
+  .toolbar{ display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:10px;}
+  .empty{ text-align:center; padding:40px 10px; color:var(--muted); font-size:13px; }
+  .empty .big{ font-size:28px; margin-bottom:8px; opacity:.5; }
+
+  .footnote{ font-size:11.5px; color:var(--muted); line-height:1.8; margin-top:6px; }
+  .switch-row{ display:flex; align-items:center; gap:10px; }
+  .switch{ position:relative; width:40px; height:22px; flex-shrink:0; }
+  .switch input{ opacity:0; width:0; height:0; }
+  .slider{
+    position:absolute; cursor:pointer; inset:0; background:#3a342a; border-radius:20px; transition:.2s;
+  }
+  .slider:before{
+    position:absolute; content:""; height:16px; width:16px; left:3px; bottom:3px;
+    background:var(--ivory); border-radius:50%; transition:.2s;
+  }
+  input:checked + .slider{ background: var(--gold); }
+  input:checked + .slider:before{ transform: translateX(18px); }
+  input:disabled + .slider{ opacity:.4; cursor:not-allowed; }
+
+  .account-grid{ display:grid; grid-template-columns: repeat(2, 1fr); gap:16px; }
+  .account-card{ border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+  .account-card h4{
+    margin:0; padding:9px 12px; font-size:12.5px; background:rgba(201,162,75,0.08);
+    color:var(--gold-bright); letter-spacing:.5px; font-weight:600;
+  }
+  .account-card table td{ font-size:12.5px; padding:6px 12px; }
+  .account-card table td:first-child{ color:var(--muted); width:64px; }
+  .sub-item-row td{ font-style: italic; padding-left:22px; }
+  .sub-item-row .code-pill{ opacity:.85; }
+  .code-pill{ font-family: "SF Mono", Consolas, monospace; font-size:11.5px; color:var(--gold-bright); }
+
+  .stat-strip{ display:flex; gap:22px; font-size:12px; color:var(--muted); margin-top:8px;}
+  .stat-strip b{ color: var(--ivory); }
+
+  ::placeholder{ color:#5c554a; }
+
+  @media (max-width: 900px){
+    .kpi-grid{ grid-template-columns: repeat(2,1fr); }
+    .form-grid{ grid-template-columns: 1fr 1fr; }
+    .account-grid{ grid-template-columns: 1fr; }
+  }
+  /* 年度營業總表：圖表文字與標題放大20% */
+  #sub-annualReport .panel-title{ font-size:16.8px; }
+
+  @media (max-width: 640px){
+    .app{ padding:16px 12px 40px; }
+    .app-header{ flex-direction:column; align-items:flex-start; gap:12px; }
+    .period-badge{ text-align:left; width:100%; }
+    .kpi-grid{ grid-template-columns: 1fr; }
+    .form-grid{ grid-template-columns: 1fr; }
+    .panel{ padding:16px 14px; }
+    .subtabs{ overflow-x:auto; -webkit-overflow-scrolling:touch; flex-wrap:nowrap; }
+    .subtab{ white-space:nowrap; }
+    .selector-row{ gap:8px; }
+    #targetMonthInputs{ grid-template-columns: repeat(3,1fr) !important; }
+    .brand-text h1{ font-size:20px; }
+    .tab{ font-size:13.5px; padding:9px 12px; }
+    .subtab{ font-size:11.5px; padding:6px 12px; }
+    .panel-title{ font-size:13px; }
+    #sub-annualReport .panel-title{ font-size:14px; }
+    .stat-strip{ gap:12px; flex-wrap:wrap; }
+    .toolbar{ flex-direction:column; align-items:flex-start; }
+    .login-box{ padding:24px 20px; }
+  }
+  @media (max-width: 420px){
+    #targetMonthInputs{ grid-template-columns: repeat(2,1fr) !important; }
+    .kpi .value{ font-size:17px; }
+  }
+  .panel:has(table){ overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  .panel:has(table) table{ min-width:560px; }
+</style>
+</head>
+
+<body>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<!-- ============ LOGIN ============ -->
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-box">
+    <h1 class="display">MOOD 損益表系統</h1>
+    <p style="color:var(--muted); font-size:11.5px; letter-spacing:2px; margin:6px 0 20px;">請輸入身份密碼登入</p>
+    <input type="password" id="loginPassword" placeholder="密碼">
+    <button class="btn" id="loginBtn" style="width:100%;">登入</button>
+    <div id="loginError" style="color:var(--danger); font-size:12px; margin-top:12px; min-height:16px;"></div>
+  </div>
+</div>
+
+<div class="app" id="appRoot" style="display:none;">
+
+  <div class="app-header">
+    <div class="brand-mark">
+      <div class="brand-text">
+        <h1 class="display">MOOD 損益表系統</h1>
+        <p style="color:var(--muted); font-size:10.5px; letter-spacing:.5px;">系統設計：Copyright © 2026 赫睿師管顧 維妮</p>
+      </div>
+    </div>
+    <div class="period-badge">
+      <div class="role-badge" id="roleBadge"></div>
+      <div style="display:flex; gap:8px; margin-top:8px;">
+        <button class="btn ghost small" id="exportExcelBtn">匯出Excel</button>
+        <button class="btn ghost small" id="logoutBtn">登出</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="tabs" id="topTabs">
+    <div class="tab" data-major="reports">報表分析</div>
+    <div class="tab" data-major="dataEntry">資料登錄</div>
+  </div>
+
+  <!-- ================= REPORTS (parent) ================= -->
+  <div class="view" id="major-reports">
+    <div class="subtabs" id="reportsSubtabs">
+      <div class="subtab active" data-sub="annualReport">年度營業總表</div>
+      <div class="subtab" data-sub="plReport">損益表</div>
+      <div class="subtab" data-sub="brandInventoryReport">品牌庫存表</div>
+    </div>
+
+    <!-- ---- 年度營業總表 ---- -->
+    <div class="subview active" id="sub-annualReport">
+    <div class="panel">
+      <div class="selector-row" style="margin-bottom:8px;">
+        <label>檢視年度</label>
+        <select id="annualYear"></select>
+      </div>
+      <div id="annualRestrictNote" class="footnote" style="display:none; color:var(--gold-bright); margin-bottom:10px;">＊僅呈現會計部已發布之月份資料，未發布月份不計入本頁彙總與圖表</div>
+      <div class="panel-title" style="margin-top:10px;">營業收入趨勢<span class="hint">單位：萬</span></div>
+      <div id="annualChartWrap"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">營業收入與管銷費用比較<span class="hint">單位：萬</span></div>
+
+      <div style="font-size:13px; color:var(--gold-bright); font-weight:600; margin:6px 0 8px;">服飾／異業收入比較</div>
+      <div id="revBarWrap"></div>
+
+      <div style="font-size:13px; color:var(--gold-bright); font-weight:600; margin:22px 0 8px;">各項管銷費用比較</div>
+      <div id="sgaBarWrap"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">月別營運績效彙總表</div>
+      <table>
+        <thead><tr><th style="width:90px">月份</th><th class="num">營業收入</th><th class="num">銷貨成本</th><th class="num">毛利</th><th class="num" style="width:70px">毛利率</th><th class="num">管銷費用</th><th class="num">稅後淨利</th><th class="num" style="width:70px">淨利率</th></tr></thead>
+        <tbody id="annualTableBody"></tbody>
+      </table>
+    </div>
+    </div>
+
+    <!-- ---- 損益表 ---- -->
+    <div class="subview" id="sub-plReport">
+    <div class="subtabs" id="plSubtabs">
+      <div class="subtab active" data-sub="plMonth">單月損益表</div>
+      <div class="subtab" data-sub="plYear">全年損益表</div>
+    </div>
+
+    <!-- ---- 單月損益表 ---- -->
+    <div class="subview active" id="sub-plMonth">
+      <div class="panel">
+        <div class="selector-row">
+          <label>檢視月份</label>
+          <select id="dashYear"></select>
+          <select id="dashMonth"></select>
+          <span style="flex:1"></span>
+          <div class="switch-row">
+            <span style="font-size:12px;color:var(--muted)">本月計提營所稅</span>
+            <label class="switch"><input type="checkbox" id="taxToggle"><span class="slider"></span></label>
+            <input type="number" id="taxRate" value="1.5" step="0.1" style="width:60px" title="稅率(%)">
+            <span style="font-size:12px;color:var(--muted)">%</span>
+          </div>
+        </div>
+        <div class="selector-row" style="margin-top:10px; margin-bottom:0; padding-top:10px; border-top:1px solid var(--line);">
+          <span style="font-size:12px;color:var(--muted)">發布本月損益表給股東</span>
+          <label class="switch"><input type="checkbox" id="publishToggle"><span class="slider"></span></label>
+          <span id="publishStatusBadge" class="tag expense">尚未發布</span>
+          <span style="flex:1"></span>
+          <span class="footnote" style="margin:0;">未發布前，股東代表身份無法檢視本月損益表數字</span>
+        </div>
+      </div>
+
+      <div id="plMonthLockedWrap" class="panel" style="display:none;">
+        <div class="empty"><div class="big">🔒</div>會計部尚未發布本月損益表資料，請洽詢會計人員</div>
+      </div>
+
+      <div id="plMonthDataWrap">
+        <div class="panel">
+          <div class="kpi-grid">
+            <div class="kpi gold"><div class="label">營業收入小計</div><div class="value" id="kpiRevenue">$0</div><div class="sub" id="kpiRevenueSub">—</div></div>
+            <div class="kpi"><div class="label">銷貨成本小計</div><div class="value" id="kpiCogs">$0</div><div class="sub" id="kpiCogsSub">—</div></div>
+            <div class="kpi"><div class="label">毛利 / 毛利率</div><div class="value" id="kpiGP">$0</div><div class="sub" id="kpiGPSub">—</div></div>
+            <div class="kpi"><div class="label">管銷費用小計</div><div class="value" id="kpiSga">$0</div><div class="sub" id="kpiSgaSub">—</div></div>
+            <div class="kpi pos" id="kpiNetCard"><div class="label">稅後淨利 / 淨利率</div><div class="value" id="kpiNet">$0</div><div class="sub" id="kpiNetSub">—</div></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title">損益結構明細<span class="hint">依【資料登錄】自動彙總</span></div>
+          <table>
+            <thead><tr><th style="width:58%">項目</th><th class="num">金額</th><th class="num" style="width:90px">佔營收%</th></tr></thead>
+            <tbody id="plBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ---- 全年損益表 ---- -->
+    <div class="subview" id="sub-plYear">
+      <div class="panel">
+        <div class="selector-row">
+          <label>檢視年度</label>
+          <select id="plYearYear"></select>
+        </div>
+        <div id="plYearRestrictNote" class="footnote" style="display:none; color:var(--gold-bright); margin-bottom:6px;">＊僅呈現會計部已發布之月份資料，未發布月份不計入本頁彙總</div>
+        <div class="kpi-grid">
+          <div class="kpi gold"><div class="label">全年營業收入</div><div class="value" id="kpiRevenueY">$0</div><div class="sub" id="kpiRevenueSubY">—</div></div>
+          <div class="kpi"><div class="label">全年銷貨成本</div><div class="value" id="kpiCogsY">$0</div><div class="sub" id="kpiCogsSubY">—</div></div>
+          <div class="kpi"><div class="label">全年毛利 / 毛利率</div><div class="value" id="kpiGPY">$0</div><div class="sub" id="kpiGPSubY">—</div></div>
+          <div class="kpi"><div class="label">全年管銷費用</div><div class="value" id="kpiSgaY">$0</div><div class="sub" id="kpiSgaSubY">—</div></div>
+          <div class="kpi pos" id="kpiNetCardY"><div class="label">全年稅後淨利 / 淨利率</div><div class="value" id="kpiNetY">$0</div><div class="sub" id="kpiNetSubY">—</div></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">全年損益結構明細<span class="hint">12個月累計彙總</span></div>
+        <table>
+          <thead><tr><th style="width:58%">項目</th><th class="num">金額</th><th class="num" style="width:90px">佔營收%</th></tr></thead>
+          <tbody id="plYearBody"></tbody>
+        </table>
+      </div>
+    </div>
+    </div>
+
+    <!-- ---- 品牌庫存表 ---- -->
+    <div class="subview" id="sub-brandInventoryReport">
+      <div class="panel">
+        <div class="selector-row" style="margin-bottom:4px;">
+          <label>檢視年度</label>
+          <select id="brandReportYear"></select>
+          <label>檢視期間</label>
+          <select id="brandReportHalf">
+            <option value="H1">上半年 (1-6月)</option>
+            <option value="H2">下半年 (7-12月)</option>
+          </select>
+        </div>
+        <div class="footnote">
+          ●每月期末庫存自動換算為盒數（期末庫存金額 ÷ 單位成本［每盒］，四捨五入取整數）。<br>
+          ●本分頁只供閱讀，編輯內容請至【資料登錄】→【品牌庫存登錄】維護。
+        </div>
+      </div>
+      <div id="brandReportCards"></div>
+    </div>
+  </div>
+
+  <!-- ================= DATA ENTRY (parent) ================= -->
+  <div class="view" id="major-dataEntry">
+    <div class="subtabs" id="dataSubtabs">
+      <div class="subtab active" data-sub="targets">年度目標登錄</div>
+      <div class="subtab" data-sub="entries">每月收支登錄</div>
+      <div class="subtab" data-sub="inventory">品牌庫存登錄</div>
+      <div class="subtab" data-sub="productCards">品牌庫存卡登錄</div>
+      <div class="subtab" data-sub="accounts">會計科目</div>
+    </div>
+
+    <!-- ---- 年度目標登錄 ---- -->
+    <div class="subview active" id="sub-targets">
+      <div class="panel">
+        <div class="panel-title">雲端試算表同步<span class="hint">將系統資料同步寫入您的 Google 試算表</span></div>
+        <div class="footnote" style="margin-bottom:12px;">
+          設定好網址並儲存後，<b style="color:var(--gold-bright);">之後任何資料異動（新增／編輯／刪除）都會自動於背景同步</b>，不需手動點擊。此系統無後端資料庫，資料存放於您瀏覽器本機；串接方式是透過一個免費的 Google Apps Script 接收端點，本系統以 POST 方式送出資料，詳細設定步驟請見對話中的說明。
+        </div>
+        <div class="selector-row" style="margin-bottom:10px;">
+          <input type="text" id="cloudSyncUrl" value="https://script.google.com/macros/s/AKfycbzVnOGMiy2P6MwgijkkA03mLOuscJLe4N4T_m0wPUzTaWd14oT2Qk-kqtdIYFO8rJvxlg/exec" placeholder="貼上您的 Google Apps Script 網頁應用程式網址（https://script.google.com/macros/s/.../exec）" style="flex:1; min-width:280px;">
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+          <button class="btn ghost small" id="saveCloudUrlBtn">儲存網址</button>
+          <button class="btn ghost small" id="syncCloudBtn">立即手動同步</button>
+          <span style="flex:1"></span>
+          <label class="switch"><input type="checkbox" id="autoSyncToggle"><span class="slider"></span></label>
+          <span style="font-size:12px;color:var(--muted)">額外每 5 分鐘定期同步（保險機制，非必要，僅在本頁面開啟時有效）</span>
+        </div>
+        <div class="footnote" id="cloudSyncStatus" style="margin-top:8px;"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">年度營業收入目標<span class="hint">呈現於營業收入趨勢圖（橘線）</span></div>
+        <div class="selector-row" style="margin-bottom:14px;">
+          <label>設定年度</label>
+          <select id="targetYear"></select>
+        </div>
+        <div id="targetMonthInputs" style="margin-bottom:16px;"></div>
+        <button class="btn" id="saveTargetsBtn">儲存年度目標</button>
+        <div class="footnote" style="margin-top:8px;">未填寫的月份視為「無目標」，年度營業總表趨勢圖橘線僅連接有設定目標的月份。</div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">已設定目標一覽</div>
+        <div id="targetsChartWrap"></div>
+        <div class="footnote" style="margin-top:10px;">管理各年度目標：</div>
+        <div id="targetsManageList" style="display:flex; flex-wrap:wrap; gap:8px; margin-top:8px;"></div>
+      </div>
+    </div>
+
+    <!-- ---- 收支登錄 ---- -->
+    <div class="subview" id="sub-entries">
+      <div class="panel">
+        <div class="panel-title">批次匯入收支明細 ( 適用202607以前 )<span class="hint">支援 CSV／Excel（.xlsx）</span></div>
+        <div class="selector-row" style="margin-bottom:14px;">
+          <label>匯入預設年份</label>
+          <select id="impYear"></select>
+          <label>匯入預設月份</label>
+          <select id="impMonth"></select>
+        </div>
+        <div class="selector-row" style="margin-bottom:14px;">
+          <label class="switch"><input type="checkbox" id="impOverridePeriod" checked><span class="slider"></span></label>
+          <span style="font-size:12.5px;color:var(--muted);max-width:520px;">以上方所選年／月為整批匯入資料的「所屬月份」（建議開啟）。即使檔案內單筆日期落在其他月份（如7月營收於8月才請款入帳），仍全部歸屬到所選月份；關閉後則改採檔案內各筆自帶的年／月欄位。</span>
+        </div>
+        <div class="selector-row">
+          <input type="file" id="impFile" accept=".csv,.xlsx,.xls" style="color:var(--muted);font-size:12.5px;">
+          <button class="btn ghost small" id="downloadTemplate">下載匯入範本</button>
+          <span id="impFileName" style="font-size:12px;color:var(--muted);"></span>
+        </div>
+
+        <div id="importPreviewWrap" style="display:none; margin-top:16px;">
+          <div class="stat-strip" id="importStat" style="margin-bottom:10px;"></div>
+          <div style="max-height:320px; overflow:auto; border:1px solid var(--line); border-radius:8px;">
+            <table>
+              <thead><tr>
+                <th style="width:56px">列號</th>
+                <th style="width:70px">年</th><th style="width:50px">月</th><th style="width:50px">日</th>
+                <th style="width:80px">科目代號</th><th>科目名稱</th><th class="num" style="width:110px">金額</th>
+                <th>備註</th><th style="width:150px">狀態</th>
+              </tr></thead>
+              <tbody id="importPreviewBody"></tbody>
+            </table>
+          </div>
+          <div class="toolbar" style="margin-top:12px; margin-bottom:0;">
+            <span style="font-size:12px;color:var(--muted)">請確認科目代號正確對應後再匯入；標示「科目不存在」的資料列將被略過</span>
+            <div style="display:flex; gap:8px;">
+              <button class="btn ghost small" id="cancelImport">取消</button>
+              <button class="btn" id="confirmImport">確認匯入</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">新增收支明細 ( 適用202608以後 )<span class="hint">年／月＝該筆收支歸屬的會計月份</span></div>
+        <div class="form-grid">
+          <div class="field"><label>年</label><input type="number" id="fYear" value="2026"></div>
+          <div class="field"><label>月</label><select id="fMonth"></select></div>
+          <div class="field"><label>日</label><input type="number" id="fDay" min="1" max="31" value="1"></div>
+          <div class="field"><label>會計科目</label><select id="fAccount"></select></div>
+          <div class="field"><label>金額</label><input type="number" id="fAmount" placeholder="0"></div>
+          <div class="field"><label>備註</label><input type="text" id="fNote" placeholder="選填"></div>
+          <div class="field"><button class="btn" id="addEntryBtn">新增一筆</button></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="toolbar">
+          <div class="panel-title" style="margin:0">收支明細清單</div>
+          <div class="selector-row" style="margin:0">
+            <label>篩選月份</label>
+            <select id="filterYear"></select>
+            <select id="filterMonth"></select>
+            <button class="btn ghost small" id="clearFilter">全部</button>
+            <button class="btn ghost small" id="deleteMonthBtn" style="color:var(--danger); border-color: var(--danger);">刪除整月</button>
+          </div>
+        </div>
+        <table>
+          <thead><tr>
+            <th style="width:70px" class="sortable" data-sortkey="date">日期</th><th style="width:70px" class="sortable" data-sortkey="code">科目</th><th>名稱</th>
+            <th style="width:70px" class="sortable" data-sortkey="type">類別</th><th class="num sortable" style="width:110px" data-sortkey="amount">金額</th><th>備註</th><th style="width:50px"></th>
+          </tr></thead>
+          <tbody id="entriesBody"></tbody>
+        </table>
+        <div class="stat-strip" id="entriesStat"></div>
+      </div>
+    </div>
+
+    <!-- ---- 品牌庫存卡登錄 ---- -->
+    <div class="subview" id="sub-productCards">
+      <div class="panel">
+        <div class="panel-title">5204 品牌庫存資料卡片<span class="hint">產品主檔：分類、成本、包裝規格、委外製造商</span></div>
+        <div class="form-grid" style="grid-template-columns: 110px 90px 1fr 90px 80px 80px 1fr 1fr auto;">
+          <div class="field"><label>產品分類</label>
+            <select id="pCategory">
+              <option>保健食品</option><option>化妝品</option><option>自訂服飾</option><option>生活百貨</option>
+            </select>
+          </div>
+          <div class="field"><label>會計科目</label><select id="pCode"></select></div>
+          <div class="field"><label>產品品名</label><input type="text" id="pName" placeholder="例：雲朵洗卻 500ml"></div>
+          <div class="field"><label>單位成本（每盒）</label><input type="number" id="pUnitCost" placeholder="0"></div>
+          <div class="field"><label>入/盒</label><input type="number" id="pUnitsPerBox" placeholder="0"></div>
+          <div class="field"><label>盒/箱</label><input type="number" id="pBoxesPerCarton" placeholder="0"></div>
+          <div class="field"><label>委外製造商名稱</label><input type="text" id="pManufacturer" placeholder="選填"></div>
+          <div class="field"><label>委外製造商地址</label><input type="text" id="pManufacturerAddress" placeholder="選填"></div>
+          <div class="field"><button class="btn" id="addProductBtn">新增卡片</button></div>
+        </div>
+        <div class="footnote" style="margin-top:6px;">會計科目下拉選單來自【會計科目】中「銷貨成本（庫存法／品牌進貨5204）」分類；如需新科目（如新品上市），請先至【會計科目】新增代號（例：520404）。同一會計科目重複送出將覆蓋更新該卡片。</div>
+      </div>
+      <div class="account-grid" id="productCardGrid" style="margin-bottom:18px;"></div>
+    </div>
+
+    <!-- ---- 品牌庫存登錄 ---- -->
+    <div class="subview" id="sub-inventory">
+      <div class="panel">
+        <div class="panel-title">① 5204 品牌進貨（庫存法）<span class="hint">本月銷貨成本 ＝ 期初庫存 ＋ 本月進貨 － 期末庫存</span></div>
+        <div class="form-grid" style="grid-template-columns: 90px 70px 1fr 110px 110px 110px auto;">
+          <div class="field"><label>年</label><input type="number" id="iYear" value="2026"></div>
+          <div class="field"><label>月</label><select id="iMonth"></select></div>
+          <div class="field"><label>品項（5204子科目）</label><select id="iCode"></select></div>
+          <div class="field"><label>期初庫存</label><input type="number" id="iOpen" placeholder="0"></div>
+          <div class="field"><label>本月進貨</label><input type="number" id="iPurchase" placeholder="0"></div>
+          <div class="field"><label>期末庫存</label><input type="number" id="iClose" placeholder="0"></div>
+          <div class="field"><button class="btn" id="addInvBtn">新增一筆</button></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="toolbar">
+          <div class="panel-title" style="margin:0">② 庫存明細清單</div>
+        </div>
+        <table>
+          <thead><tr>
+            <th style="width:90px" class="sortable" data-sortkey="date">年月</th><th class="sortable" data-sortkey="code">會計科目</th><th class="num">期初庫存</th>
+            <th class="num">本月進貨</th><th class="num">期末庫存</th><th class="num">本月銷貨成本</th><th style="width:50px"></th>
+          </tr></thead>
+          <tbody id="invBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ---- 會計科目 ---- -->
+    <div class="subview" id="sub-accounts">
+      <div class="panel">
+        <div class="panel-title">新增／編輯會計科目<span class="hint">用於【每月收支登錄】下拉選單，新增或更新後立即生效</span></div>
+        <div class="form-grid" style="grid-template-columns: 100px 130px 1fr 150px auto;">
+          <div class="field"><label>科目代號</label><input type="text" id="cCode" placeholder="例：6808"></div>
+          <div class="field"><label>收入/支出</label>
+            <select id="cType"><option value="支出">支出</option><option value="收入">收入</option></select>
+          </div>
+          <div class="field"><label>科目名稱</label><input type="text" id="cName" placeholder="例：倉儲費用"></div>
+          <div class="field"><label>損益分類</label><select id="cGroup"></select></div>
+          <div class="field"><button class="btn" id="addAccountBtn">新增科目</button></div>
+        </div>
+        <div id="accountEditWarning" class="footnote" style="display:none; margin-top:8px; color:var(--danger);">⚠ 此為系統預設科目：損益表結構固定顯示於原本位置，如變更「損益分類」可能造成該科目金額不再計入正確的小計，請謹慎操作。</div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">會計科目總覽</div>
+        <div class="account-grid" id="accountGrid"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ============ Custom modal & toast (sandboxed iframes often block native alert/confirm) ============ -->
+<div id="modalOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:1000; align-items:center; justify-content:center;">
+  <div style="background:linear-gradient(180deg,#1D1A16,#242019); border:1px solid var(--line); border-radius:12px; padding:24px 26px; max-width:380px; width:90%;">
+    <div id="modalMessage" style="font-size:14px; line-height:1.7; color:var(--ivory); margin-bottom:20px; white-space:pre-line;"></div>
+    <div id="modalButtons" style="display:flex; justify-content:flex-end; gap:10px;"></div>
+  </div>
+</div>
+<div id="toastWrap" style="position:fixed; bottom:24px; left:50%; transform:translateX(-50%); z-index:1001; display:flex; flex-direction:column; gap:8px; align-items:center;"></div>
+
+<script>
+function showToast(msg){
+  const wrap = document.getElementById('toastWrap');
+  const el = document.createElement('div');
+  el.textContent = msg;
+  el.style.cssText = "background:#1D1A16; border:1px solid var(--gold); color:var(--ivory); padding:10px 18px; border-radius:8px; font-size:13px; box-shadow:0 4px 18px rgba(0,0,0,0.4); opacity:0; transition:opacity .2s ease;";
+  wrap.appendChild(el);
+  requestAnimationFrame(()=>{ el.style.opacity='1'; });
+  setTimeout(()=>{ el.style.opacity='0'; setTimeout(()=>el.remove(), 250); }, 2600);
+}
+function showConfirm(message, {okLabel="確定", cancelLabel="取消", danger=false}={}){
+  return new Promise((resolve)=>{
+    const overlay = document.getElementById('modalOverlay');
+    document.getElementById('modalMessage').textContent = message;
+    const btnWrap = document.getElementById('modalButtons');
+    btnWrap.innerHTML = '';
+    const cancelBtn = document.createElement('button');
+    cancelBtn.className = 'btn ghost small';
+    cancelBtn.textContent = cancelLabel;
+    const okBtn = document.createElement('button');
+    okBtn.className = 'btn small';
+    okBtn.textContent = okLabel;
+    if(danger){ okBtn.style.background = 'linear-gradient(180deg,#D9705A,#B5674B)'; okBtn.style.color = '#fff'; }
+    btnWrap.appendChild(cancelBtn);
+    btnWrap.appendChild(okBtn);
+    overlay.style.display = 'flex';
+    const close = (result)=>{ overlay.style.display='none'; resolve(result); };
+    cancelBtn.onclick = ()=>close(false);
+    okBtn.onclick = ()=>close(true);
+    overlay.onclick = (e)=>{ if(e.target===overlay) close(false); };
+  });
+}
+function showAlert(message){
+  return new Promise((resolve)=>{
+    const overlay = document.getElementById('modalOverlay');
+    document.getElementById('modalMessage').textContent = message;
+    const btnWrap = document.getElementById('modalButtons');
+    btnWrap.innerHTML = '';
+    const okBtn = document.createElement('button');
+    okBtn.className = 'btn small';
+    okBtn.textContent = '知道了';
+    btnWrap.appendChild(okBtn);
+    overlay.style.display = 'flex';
+    const close = ()=>{ overlay.style.display='none'; resolve(); };
+    okBtn.onclick = close;
+    overlay.onclick = (e)=>{ if(e.target===overlay) close(); };
+  });
+}
+</script>
+
+<script>
+/* ============================================================
+   營運損益系統 — 身份與權限
+   ============================================================ */
+const ROLES = {
+  shareholder: { label:"股東代表", password:"111111", tabs:["reports"], canEdit:false },
+  finance:     { label:"財務會計", password:"888888", tabs:["reports","dataEntry"], canEdit:true },
+  admin:       { label:"系統管理者", password:"123458", tabs:["reports","dataEntry"], canEdit:true },
+};
+let currentRole = null;
+
+/* ============================================================
+   資料模型與邏輯
+   ============================================================ */
+
+const GROUPS = [
+  {key:"revenue",      label:"營業收入",     sign:1},
+  {key:"revenueDeduct",label:"營業收入減項", sign:-1},
+  {key:"cogs",         label:"銷貨成本",     sign:1},
+  {key:"cogsBrand",    label:"銷貨成本（庫存法／品牌進貨5204）", sign:1},
+  {key:"cogsDeduct",   label:"銷貨成本減項", sign:-1},
+  {key:"salary",       label:"薪資費用",     sign:1},
+  {key:"office",       label:"辦公廠房",     sign:1},
+  {key:"marketing",    label:"行銷費用",     sign:1},
+  {key:"other",        label:"其他費用",     sign:1},
+];
+
+const DEFAULT_ACCOUNTS = [
+  {code:"4101",name:"服飾收入",type:"收入",group:"revenue",note:""},
+  {code:"4102",name:"異業收入",type:"收入",group:"revenue",note:""},
+  {code:"4103",name:"開團收入",type:"收入",group:"revenue",note:""},
+  {code:"4105",name:"銷貨退回",type:"支出",group:"revenueDeduct",note:"客戶退貨、退款"},
+  {code:"4106",name:"銷貨折讓",type:"支出",group:"revenueDeduct",note:""},
+  {code:"5201",name:"服飾進貨",type:"支出",group:"cogs",note:""},
+  {code:"5202",name:"異業進貨",type:"支出",group:"cogs",note:""},
+  {code:"5203",name:"耗材進貨",type:"支出",group:"cogs",note:"紙箱、破壞袋、膠帶、OPP袋等包材"},
+  {code:"5204",name:"品牌進貨",type:"支出",group:"cogsBrand",note:"自由品牌進貨Mylight，採期初+進貨-期末庫存法認列，於【品牌庫存登錄】分頁登錄"},
+  {code:"520401",name:"雲朵洗缷",type:"支出",group:"cogsBrand",note:"5204品牌進貨子項"},
+  {code:"520402",name:"NMN美妍飲",type:"支出",group:"cogsBrand",note:"5204品牌進貨子項"},
+  {code:"520403",name:"益氣王",type:"支出",group:"cogsBrand",note:"5204品牌進貨子項"},
+  {code:"5205",name:"國外運費",type:"支出",group:"cogs",note:"進項運費"},
+  {code:"5206",name:"進貨退回",type:"收入",group:"cogsDeduct",note:""},
+  {code:"5207",name:"進貨折讓",type:"收入",group:"cogsDeduct",note:""},
+  {code:"6501",name:"固定薪資",type:"支出",group:"salary",note:"內勤全薪、業務底薪、加班費"},
+  {code:"6502",name:"變動薪資",type:"支出",group:"salary",note:"PT人員薪資"},
+  {code:"6503",name:"績效獎金",type:"支出",group:"salary",note:"直播獎金、團隊獎金、年終獎金"},
+  {code:"6505",name:"勞健費用",type:"支出",group:"salary",note:"勞健退"},
+  {code:"6601",name:"廠房租金",type:"支出",group:"office",note:""},
+  {code:"6602",name:"貨款利息",type:"支出",group:"office",note:""},
+  {code:"6603",name:"折舊攤提",type:"支出",group:"office",note:"廠房改良費用攤提，以三年計算"},
+  {code:"6605",name:"郵電費用",type:"支出",group:"office",note:"LINE、就醬播、官網、網路電信"},
+  {code:"6606",name:"水電費用",type:"支出",group:"office",note:""},
+  {code:"6608",name:"辦公設備",type:"支出",group:"office",note:"電腦與辦公設備攤提一年"},
+  {code:"6701",name:"直播廣告",type:"支出",group:"marketing",note:"META廣告費與行銷公司代操費用"},
+  {code:"6702",name:"短影音費",type:"支出",group:"marketing",note:"直播限動、切片、IP短影音費用"},
+  {code:"6703",name:"水軍系統",type:"支出",group:"marketing",note:"系統租賃+操作費用"},
+  {code:"6705",name:"宣傳費用",type:"支出",group:"marketing",note:"設計費、印刷品、輔銷品、贈品"},
+  {code:"6706",name:"國內運費",type:"支出",group:"marketing",note:"國內運到消費者的運費"},
+  {code:"6801",name:"交際旅費",type:"支出",group:"other",note:"出差交通費、餐費、住宿費、交際費"},
+  {code:"6802",name:"職工福利",type:"支出",group:"other",note:"員工聚餐、員工禮品等活動"},
+  {code:"6803",name:"稅捐費用",type:"支出",group:"other",note:"公益捐款、所得稅、二代健保、發票"},
+  {code:"6805",name:"勞務費用",type:"支出",group:"other",note:"會計師費用、顧問費用、KOL合作、外包美編"},
+  {code:"6806",name:"雜項費用",type:"支出",group:"other",note:"零用金細項(金額小於10000)"},
+  {code:"6807",name:"其他費用",type:"支出",group:"other",note:"無法歸類者(金額小於20000)"},
+];
+
+// 損益表結構中已「明確逐項」列出的科目代號（buildPLRows 中的固定 line() 呼叫）。
+// 這些科目不論是否被使用者編輯，皆固定顯示於其結構位置；customLines() 僅補列不在此清單中的科目（含使用者新增或未來擴充的科目）。
+const EXPLICIT_PL_CODES = new Set([
+  "4101","4102","4103","4105","4106",
+  "5201","5202","5203","5205","5206","5207",
+  "6501","6502","6503","6505",
+  "6601","6602","6603","6605","6606","6608",
+  "6701","6702","6703","6705","6706",
+  "6801","6802","6803","6805","6806","6807",
+]);
+
+const DEFAULT_CLOUD_SYNC_URL = "https://script.google.com/macros/s/AKfycbzVnOGMiy2P6MwgijkkA03mLOuscJLe4N4T_m0wPUzTaWd14oT2Qk-kqtdIYFO8rJvxlg/exec";
+
+let state = {
+  entries: [],
+  inventory: [],
+  accounts: [],
+  brandProducts: [],
+  annualTargets: {}, // { "2026": {1: 3000000, 2: ...}, ... }
+  settings: { rate: 1.5, taxMonths: {}, publishedMonths: {}, cloudSyncUrl: DEFAULT_CLOUD_SYNC_URL },
+};
+
+function allAccounts(){ return state.accounts; }
+function findAccount(code){ return allAccounts().find(a=>a.code===code); }
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+function fmt(n){
+  const v = Math.round(n||0);
+  const s = Math.abs(v).toLocaleString('en-US');
+  return (v<0? "(":"") + "$" + s + (v<0? ")":"");
+}
+function pct(n){ if(!isFinite(n)) return "—"; return (n*100).toFixed(1)+"%"; }
+
+/* ---------- persistence ---------- */
+async function loadAll(){
+  try{ const e = await window.storage.get('pl:entries'); state.entries = e ? JSON.parse(e.value) : []; }catch(err){ state.entries = []; }
+  try{ const i = await window.storage.get('pl:inventory'); state.inventory = i ? JSON.parse(i.value) : []; }catch(err){ state.inventory = []; }
+  try{ const p = await window.storage.get('pl:brandProducts'); state.brandProducts = p ? JSON.parse(p.value) : []; }catch(err){ state.brandProducts = []; }
+  try{ const t = await window.storage.get('pl:annualTargets'); state.annualTargets = t ? JSON.parse(t.value) : {}; }catch(err){ state.annualTargets = {}; }
+  try{ const s = await window.storage.get('pl:settings'); state.settings = s ? JSON.parse(s.value) : { rate:1.5, taxMonths:{}, publishedMonths:{}, cloudSyncUrl:DEFAULT_CLOUD_SYNC_URL }; }catch(err){ state.settings = { rate:1.5, taxMonths:{}, publishedMonths:{}, cloudSyncUrl:DEFAULT_CLOUD_SYNC_URL }; }
+  if(!state.settings.publishedMonths) state.settings.publishedMonths = {};
+  if(!state.settings.cloudSyncUrl) state.settings.cloudSyncUrl = DEFAULT_CLOUD_SYNC_URL;
+
+  try{
+    const a = await window.storage.get('pl:accounts');
+    if(a){
+      state.accounts = JSON.parse(a.value);
+    } else {
+      // 首次載入：以系統預設科目表為種子資料，並嘗試合併舊版本已新增的自訂科目
+      let legacyCustom = [];
+      try{ const c = await window.storage.get('pl:customAccounts'); legacyCustom = c ? JSON.parse(c.value) : []; }catch(err){}
+      state.accounts = DEFAULT_ACCOUNTS.map(x=>({...x})).concat(legacyCustom);
+      await saveAccounts();
+    }
+  }catch(err){
+    state.accounts = DEFAULT_ACCOUNTS.map(x=>({...x}));
+  }
+}
+async function saveEntries(){ try{ await window.storage.set('pl:entries', JSON.stringify(state.entries)); }catch(e){ console.error(e); } scheduleAutoSyncOnChange(); }
+async function saveInventory(){ try{ await window.storage.set('pl:inventory', JSON.stringify(state.inventory)); }catch(e){ console.error(e); } scheduleAutoSyncOnChange(); }
+async function saveAccounts(){ try{ await window.storage.set('pl:accounts', JSON.stringify(state.accounts)); }catch(e){ console.error(e); } scheduleAutoSyncOnChange(); }
+async function saveBrandProducts(){ try{ await window.storage.set('pl:brandProducts', JSON.stringify(state.brandProducts)); }catch(e){ console.error(e); } scheduleAutoSyncOnChange(); }
+async function saveAnnualTargets(){ try{ await window.storage.set('pl:annualTargets', JSON.stringify(state.annualTargets)); }catch(e){ console.error(e); } scheduleAutoSyncOnChange(); }
+async function saveSettings(){ try{ await window.storage.set('pl:settings', JSON.stringify(state.settings)); }catch(e){ console.error(e); } scheduleAutoSyncOnChange(); }
+
+
+/* ---------- computation: single month ---------- */
+function computePL(year, month){
+  const key = `${year}-${month}`;
+  const groupTotals = Object.fromEntries(GROUPS.map(g=>[g.key,0]));
+  const lineAmounts = {};
+  allAccounts().forEach(a=> lineAmounts[a.code]=0);
+
+  state.entries.forEach(e=>{
+    if(String(e.year)!==String(year) || String(e.month)!==String(month)) return;
+    const acc = findAccount(e.code);
+    if(!acc) return;
+    const amt = Number(e.amount)||0;
+    lineAmounts[e.code] = (lineAmounts[e.code]||0) + amt;
+    const g = GROUPS.find(g=>g.key===acc.group);
+    groupTotals[acc.group] += amt * g.sign;
+  });
+
+  let brandCost = 0;
+  const brandLineAmounts = {};
+  state.inventory.forEach(i=>{
+    if(String(i.year)!==String(year) || String(i.month)!==String(month)) return;
+    const cost = (Number(i.open)||0) + (Number(i.purchase)||0) - (Number(i.close)||0);
+    brandCost += cost;
+    const key2 = i.code || i.name || "未分類";
+    brandLineAmounts[key2] = (brandLineAmounts[key2]||0) + cost;
+  });
+  groupTotals.cogs += brandCost;
+
+  const revenue = groupTotals.revenue + groupTotals.revenueDeduct;
+  const cogs = groupTotals.cogs + groupTotals.cogsDeduct;
+  const grossProfit = revenue - cogs;
+  const sga = groupTotals.salary + groupTotals.office + groupTotals.marketing + groupTotals.other;
+  const pretax = grossProfit - sga;
+
+  const taxOn = !!state.settings.taxMonths[key];
+  const rate = (Number(state.settings.rate)||0)/100;
+  const taxAmount = taxOn ? revenue*rate : 0;
+  const aftertax = pretax - taxAmount;
+
+  return { revenue, cogs, grossProfit, sga, pretax, taxAmount, aftertax, brandCost, brandLineAmounts,
+           groupTotals, lineAmounts, taxOn, rate };
+}
+
+/* ---------- computation: full year aggregate ---------- */
+function computeAnnualPL(year, options){
+  options = options || {};
+  const allowedMonths = options.allowedMonths || null; // null = 不限制（全部月份）
+
+  const groupTotals = Object.fromEntries(GROUPS.map(g=>[g.key,0]));
+  const lineAmounts = {};
+  allAccounts().forEach(a=> lineAmounts[a.code]=0);
+  const brandLineAmounts = {};
+
+  let revenue=0, cogs=0, grossProfit=0, sga=0, pretax=0, taxAmount=0, aftertax=0, brandCost=0;
+  const monthly = [];
+
+  for(let m=1; m<=12; m++){
+    const isAllowed = !allowedMonths || allowedMonths.includes(m);
+    const r = isAllowed ? computePL(year, m) : null;
+    if(r){
+      revenue += r.revenue; cogs += r.cogs; grossProfit += r.grossProfit; sga += r.sga;
+      pretax += r.pretax; taxAmount += r.taxAmount; aftertax += r.aftertax; brandCost += r.brandCost;
+      GROUPS.forEach(g=> groupTotals[g.key] += r.groupTotals[g.key]);
+      Object.keys(r.lineAmounts).forEach(c=> lineAmounts[c] = (lineAmounts[c]||0) + r.lineAmounts[c]);
+      Object.keys(r.brandLineAmounts).forEach(c=> brandLineAmounts[c] = (brandLineAmounts[c]||0) + r.brandLineAmounts[c]);
+      monthly.push({ month:m, revenue:r.revenue, cogs:r.cogs, grossProfit:r.grossProfit, sga:r.sga, pretax:r.pretax, aftertax:r.aftertax,
+                     apparel:r.lineAmounts['4101']||0, crossIndustry:r.lineAmounts['4102']||0,
+                     salary:r.groupTotals.salary, office:r.groupTotals.office, marketing:r.groupTotals.marketing, other:r.groupTotals.other });
+    } else {
+      // 未發布月份：對非會計部身份視為無資料（0值），不納入彙總
+      monthly.push({ month:m, revenue:0, cogs:0, grossProfit:0, sga:0, pretax:0, aftertax:0,
+                     apparel:0, crossIndustry:0, salary:0, office:0, marketing:0, other:0 });
+    }
+  }
+
+  return { revenue, cogs, grossProfit, sga, pretax, taxAmount, aftertax, brandCost, brandLineAmounts,
+           groupTotals, lineAmounts, monthly };
+}
+
+// 依身份判斷年度彙總可顯示的月份：會計部(canEdit)不限制；其餘身份僅能看到「已發布」的月份
+function getAllowedMonthsForRole(year){
+  const role = currentRole ? ROLES[currentRole] : null;
+  if(!role || role.canEdit) return null;
+  const allowed = [];
+  for(let m=1; m<=12; m++){
+    if(state.settings.publishedMonths[`${year}-${m}`]) allowed.push(m);
+  }
+  return allowed;
+}
+
+/* ---------- UI: option builders ---------- */
+function yearOptions(sel){
+  const years = [2026,2027,2028,2029];
+  return years.map(y=>`<option value="${y}" ${String(y)===String(sel)?'selected':''}>${y}</option>`).join('');
+}
+function monthOptions(sel){
+  let out='';
+  for(let m=1;m<=12;m++) out+=`<option value="${m}" ${String(m)===String(sel)?'selected':''}>${m}月</option>`;
+  return out;
+}
+function accountOptionsGrouped(sel){
+  let out='';
+  GROUPS.forEach(g=>{
+    if(g.key==='cogsBrand') return;
+    const items = allAccounts().filter(a=>a.group===g.key);
+    if(!items.length) return;
+    out += `<optgroup label="${g.label}">`;
+    items.forEach(a=> out += `<option value="${a.code}" ${a.code===sel?'selected':''}>${a.code} ${a.name}</option>`);
+    out += `</optgroup>`;
+  });
+  return out;
+}
+function inventoryAccountOptions(sel){
+  return allAccounts().filter(a=>a.group==='cogsBrand' && a.code!=='5204')
+    .map(a=>`<option value="${a.code}" ${a.code===sel?'selected':''}>${a.code} ${a.name}</option>`).join('');
+}
+
+/* ---------- shared: build P&L breakdown rows (used by monthly & annual views) ---------- */
+function signColor(n){
+  if(!isFinite(n)) return 'var(--muted)';
+  if(n>0) return '#E5473D';   // 正數 → 紅字
+  if(n<0) return '#5C9E7A';   // 負數 → 綠字
+  return 'var(--muted)';
+}
+function pctCell(ratio){
+  return `<td class="num" style="color:${signColor(ratio)}">${pct(ratio)}</td>`;
+}
+
+function buildPLRows(r, taxLabel){
+  const rows = [];
+  const line = (label, code, indent=true, deduct=false)=>{
+    const amt = (r.lineAmounts[code]||0) * (deduct? -1:1);
+    if(amt===0) return; // 0值不顯示
+    const ratio = r.revenue? amt/r.revenue: NaN;
+    rows.push(`<tr class="${indent?'sub-row':''}"><td>${label}</td><td class="num ${deduct?'deduct':''}">${fmt(amt)}</td>${pctCell(ratio)}</tr>`);
+  };
+  const subtotal = (label, amt)=>{
+    const ratio = r.revenue? amt/r.revenue: NaN;
+    rows.push(`<tr class="subtotal-row"><td>${label}</td><td class="num">${fmt(amt)}</td>${pctCell(ratio)}</tr>`);
+  };
+  const section = (label)=> rows.push(`<tr class="section-row"><td colspan="3">${label}</td></tr>`);
+  const customLines = (groupKey, deduct=false)=>{
+    state.accounts.filter(a=>a.group===groupKey && !EXPLICIT_PL_CODES.has(a.code)).forEach(a=>{
+      line(`${a.code} ${a.name}`, a.code, true, deduct);
+    });
+  };
+
+  section("營業收入");
+  line("4101 服飾收入","4101"); line("4102 異業收入","4102"); line("4103 開團收入","4103");
+  customLines("revenue");
+  line("減：4105 銷貨退回","4105",true,true); line("減：4106 銷貨折讓","4106",true,true);
+  customLines("revenueDeduct", true);
+  subtotal("營業收入小計", r.revenue);
+
+  section("銷貨成本");
+  line("5201 服飾進貨","5201"); line("5202 異業進貨","5202"); line("5203 耗材進貨","5203");
+  allAccounts().filter(a=>a.group==='cogsBrand' && a.code!=='5204').forEach(a=>{
+    const amt = r.brandLineAmounts[a.code]||0;
+    if(amt===0) return; // 0值不顯示
+    const ratio = r.revenue? amt/r.revenue: NaN;
+    rows.push(`<tr class="sub-sub-row"><td>${a.code} ${a.name}</td><td class="num">${fmt(amt)}</td>${pctCell(ratio)}</tr>`);
+  });
+  if(r.brandCost!==0){
+    rows.push(`<tr class="sub-row" style="font-weight:600"><td>5204 品牌進貨小計（庫存法）</td><td class="num">${fmt(r.brandCost)}</td>${pctCell(r.revenue? r.brandCost/r.revenue: NaN)}</tr>`);
+  }
+  line("5205 國外運費","5205");
+  customLines("cogs");
+  line("減：5206 進貨退回","5206",true,true); line("減：5207 進貨折讓","5207",true,true);
+  customLines("cogsDeduct", true);
+  subtotal("銷貨成本小計", r.cogs);
+
+  rows.push(`<tr class="hero-row"><td>毛利（營業收入小計－銷貨成本小計）</td><td class="num">${fmt(r.grossProfit)}</td>${pctCell(r.revenue? r.grossProfit/r.revenue: NaN)}</tr>`);
+
+  section("管銷費用 — 薪資費用");
+  ["6501","6502","6503","6505"].forEach(c=>{ const a=findAccount(c); line(`${c} ${a.name}`,c); });
+  customLines("salary");
+  subtotal("薪資費用小計", r.groupTotals.salary);
+
+  section("管銷費用 — 辦公廠房");
+  ["6601","6602","6603","6605","6606","6608"].forEach(c=>{ const a=findAccount(c); line(`${c} ${a.name}`,c); });
+  customLines("office");
+  subtotal("辦公廠房小計", r.groupTotals.office);
+
+  section("管銷費用 — 行銷費用");
+  ["6701","6702","6703","6705","6706"].forEach(c=>{ const a=findAccount(c); line(`${c} ${a.name}`,c); });
+  customLines("marketing");
+  subtotal("行銷費用小計", r.groupTotals.marketing);
+
+  section("管銷費用 — 其他費用");
+  ["6801","6802","6803","6805","6806","6807"].forEach(c=>{ const a=findAccount(c); line(`${c} ${a.name}`,c); });
+  customLines("other");
+  subtotal("其他費用小計", r.groupTotals.other);
+
+  subtotal("管銷費用小計", r.sga);
+  rows.push(`<tr class="hero-row"><td>稅前淨利（毛利－管銷費用小計）</td><td class="num">${fmt(r.pretax)}</td>${pctCell(r.revenue? r.pretax/r.revenue: NaN)}</tr>`);
+
+  section("稅務試算");
+  rows.push(`<tr class="sub-row"><td>${taxLabel}</td><td class="num deduct">${fmt(-r.taxAmount)}</td>${pctCell(r.revenue? -r.taxAmount/r.revenue: NaN)}</tr>`);
+
+  rows.push(`<tr class="hero-row final"><td>稅後淨利</td><td class="num">${fmt(r.aftertax)}</td>${pctCell(r.revenue? r.aftertax/r.revenue: NaN)}</tr>`);
+
+  return rows.join('');
+}
+
+/* ---------- render: 單月損益表 ---------- */
+function renderMonthPL(){
+  const y = document.getElementById('dashYear').value;
+  const m = document.getElementById('dashMonth').value;
+  const key = `${y}-${m}`;
+
+  document.getElementById('taxToggle').checked = !!state.settings.taxMonths[key];
+  document.getElementById('taxRate').value = state.settings.rate;
+
+  const isPublished = !!state.settings.publishedMonths[key];
+  document.getElementById('publishToggle').checked = isPublished;
+  document.getElementById('publishStatusBadge').textContent = isPublished ? '已發布' : '尚未發布';
+  document.getElementById('publishStatusBadge').className = isPublished ? 'tag income' : 'tag expense';
+
+  const role = currentRole ? ROLES[currentRole] : null;
+  const canViewData = !role || role.canEdit || isPublished;
+  document.getElementById('plMonthLockedWrap').style.display = canViewData ? 'none' : 'block';
+  document.getElementById('plMonthDataWrap').style.display = canViewData ? 'block' : 'none';
+  if(!canViewData) return;
+
+  const r = computePL(y,m);
+
+  document.getElementById('kpiRevenue').textContent = fmt(r.revenue);
+  document.getElementById('kpiRevenueSub').textContent = "本期營收基準";
+  document.getElementById('kpiCogs').textContent = fmt(r.cogs);
+  document.getElementById('kpiCogsSub').innerHTML = `<span style="color:${signColor(r.revenue? r.cogs/r.revenue : NaN)}">${pct(r.revenue? r.cogs/r.revenue : NaN)}</span> 佔營收`;
+  document.getElementById('kpiGP').textContent = fmt(r.grossProfit);
+  document.getElementById('kpiGPSub').innerHTML = `<span style="color:${signColor(r.revenue? r.grossProfit/r.revenue: NaN)}">${pct(r.revenue? r.grossProfit/r.revenue: NaN)}</span> 毛利率`;
+  document.getElementById('kpiSga').textContent = fmt(r.sga);
+  document.getElementById('kpiSgaSub').innerHTML = `<span style="color:${signColor(r.revenue? r.sga/r.revenue: NaN)}">${pct(r.revenue? r.sga/r.revenue: NaN)}</span> 佔營收`;
+
+  const netColor = signColor(r.aftertax);
+  document.getElementById('kpiNet').textContent = fmt(r.aftertax);
+  document.getElementById('kpiNet').style.color = netColor;
+  document.getElementById('kpiNetSub').innerHTML = `<span style="color:${netColor}">${pct(r.revenue? r.aftertax/r.revenue: NaN)}</span> 淨利率`;
+  document.getElementById('kpiNetCard').className = "kpi";
+
+  const taxLabel = `減：營所稅預估 (${r.taxOn? (r.rate*100).toFixed(1) : '0.0'}% × 營業收入)`;
+  document.getElementById('plBody').innerHTML = buildPLRows(r, taxLabel);
+}
+
+/* ---------- render: 全年損益表 ---------- */
+function renderYearPL(){
+  const y = document.getElementById('plYearYear').value;
+  const allowedMonths = getAllowedMonthsForRole(y);
+  const r = computeAnnualPL(y, {allowedMonths});
+
+  const noteEl = document.getElementById('plYearRestrictNote');
+  if(noteEl) noteEl.style.display = allowedMonths ? 'block' : 'none';
+
+  document.getElementById('kpiRevenueY').textContent = fmt(r.revenue);
+  document.getElementById('kpiRevenueSubY').textContent = `${y} 年度累計`;
+  document.getElementById('kpiCogsY').textContent = fmt(r.cogs);
+  document.getElementById('kpiCogsSubY').innerHTML = `<span style="color:${signColor(r.revenue? r.cogs/r.revenue : NaN)}">${pct(r.revenue? r.cogs/r.revenue : NaN)}</span> 佔營收`;
+  document.getElementById('kpiGPY').textContent = fmt(r.grossProfit);
+  document.getElementById('kpiGPSubY').innerHTML = `<span style="color:${signColor(r.revenue? r.grossProfit/r.revenue: NaN)}">${pct(r.revenue? r.grossProfit/r.revenue: NaN)}</span> 毛利率`;
+  document.getElementById('kpiSgaY').textContent = fmt(r.sga);
+  document.getElementById('kpiSgaSubY').innerHTML = `<span style="color:${signColor(r.revenue? r.sga/r.revenue: NaN)}">${pct(r.revenue? r.sga/r.revenue: NaN)}</span> 佔營收`;
+
+  const netColorY = signColor(r.aftertax);
+  document.getElementById('kpiNetY').textContent = fmt(r.aftertax);
+  document.getElementById('kpiNetY').style.color = netColorY;
+  document.getElementById('kpiNetSubY').innerHTML = `<span style="color:${netColorY}">${pct(r.revenue? r.aftertax/r.revenue: NaN)}</span> 淨利率`;
+  document.getElementById('kpiNetCardY').className = "kpi";
+
+  const taxLabel = `減：營所稅預估（依各月別「本月是否計提」設定加總）`;
+  document.getElementById('plYearBody').innerHTML = buildPLRows(r, taxLabel);
+}
+
+/* ---------- render: 年度營業總表 ---------- */
+function fmtCompact(n){
+  const v = Math.round(n||0);
+  const abs = Math.abs(v);
+  if(abs>=10000){ return (v<0?'-':'') + (abs/10000).toFixed(1) + '萬'; }
+  return fmt(v);
+}
+
+function renderTrendChart(monthly, targets){
+  targets = targets || {};
+  const width=1000, height=300, padL=60, padR=20, padT=34, padB=48;
+  const targetVals = monthly.map(m=> targets[m.month]!=null ? Number(targets[m.month]) : null).filter(v=>v!=null);
+  const vals = monthly.map(m=>m.revenue).concat(targetVals).concat([0]);
+  const maxVal = Math.max(...vals, 1);
+  const minVal = Math.min(...vals, 0);
+  const range = (maxVal-minVal)||1;
+  const xStep = (width-padL-padR)/11;
+  const yScale = v => padT + (height-padT-padB) - ((v-minVal)/range)*(height-padT-padB);
+  const xPos = i => padL + i*xStep;
+  const zeroY = yScale(0);
+  const color = '#C9A24B';
+  const targetColor = '#E8892E';
+
+  const nonZero = monthly.map((m,i)=>({...m, idx:i})).filter(m=>m.revenue!==0);
+  const targetPts = monthly.map((m,i)=>({month:m.month, idx:i, val: targets[m.month]!=null ? Number(targets[m.month]) : null})).filter(m=>m.val!=null && m.val!==0);
+
+  const d = nonZero.map((m,j)=> `${j===0?'M':'L'} ${xPos(m.idx).toFixed(1)} ${yScale(m.revenue).toFixed(1)}`).join(' ');
+  const dots = nonZero.map(m=>{
+    const cx = xPos(m.idx).toFixed(1), cy = yScale(m.revenue).toFixed(1);
+    return `<circle cx="${cx}" cy="${cy}" r="3.4" fill="${color}"><title>${m.month}月：${fmt(m.revenue)}</title></circle>
+      <text x="${cx}" y="${(yScale(m.revenue)-10).toFixed(1)}" fill="#E7C77A" font-size="12.5" text-anchor="middle" font-weight="600">${fmtCompact(m.revenue)}</text>`;
+  }).join('');
+
+  const dTarget = targetPts.map((m,j)=> `${j===0?'M':'L'} ${xPos(m.idx).toFixed(1)} ${yScale(m.val).toFixed(1)}`).join(' ');
+  const targetDots = targetPts.map(m=>{
+    const cx = xPos(m.idx).toFixed(1), cy = yScale(m.val).toFixed(1);
+    return `<circle cx="${cx}" cy="${cy}" r="3" fill="${targetColor}"><title>${m.month}月目標：${fmt(m.val)}</title></circle>`;
+  }).join('');
+  // 目標數字統一放在圖表底部固定列（月份標籤上方），與營業收入數字（浮動於各點上方）明確上下分開，避免重疊
+  const targetLabelRow = targetPts.map(m=>{
+    const cx = xPos(m.idx).toFixed(1);
+    return `<text x="${cx}" y="${height-24}" fill="${targetColor}" font-size="12.5" text-anchor="middle" font-weight="600">${fmtCompact(m.val)}</text>`;
+  }).join('');
+
+  let svg = `<svg viewBox="0 0 ${width} ${height}" style="width:100%; height:auto; display:block;">`;
+  svg += `<line x1="${padL}" y1="${zeroY.toFixed(1)}" x2="${width-padR}" y2="${zeroY.toFixed(1)}" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>`;
+  monthly.forEach((m,i)=>{
+    svg += `<text x="${xPos(i).toFixed(1)}" y="${height-8}" fill="#9C9184" font-size="12" text-anchor="middle">${m.month}月</text>`;
+  });
+  if(targetPts.length){
+    svg += `<path d="${dTarget}" fill="none" stroke="${targetColor}" stroke-width="2" stroke-dasharray="5,4"/>${targetDots}`;
+    svg += targetLabelRow;
+  }
+  svg += `<path d="${d}" fill="none" stroke="${color}" stroke-width="2.4"/>${dots}`;
+  svg += `</svg>`;
+
+  const legend = `<div style="display:flex;gap:20px;margin-top:8px;font-size:14.4px;color:var(--muted);flex-wrap:wrap;">
+    <span><span class="dot" style="background:#C9A24B"></span>總營業收入</span>
+    ${targetPts.length? `<span><span class="dot" style="background:${targetColor}"></span>年度目標</span>` : ''}
+  </div>`;
+
+  document.getElementById('annualChartWrap').innerHTML = svg + legend;
+}
+
+function renderSgaBarChart(monthly){
+  const width=1000, height=300, padL=60, padR=20, padT=34, padB=30;
+  const series = [
+    {key:'salary', color:'#C9A24B', label:'薪資費用'},
+    {key:'office', color:'#5C9E7A', label:'辦公廠房'},
+    {key:'marketing', color:'#8CA8D8', label:'行銷費用'},
+    {key:'other', color:'#B5714B', label:'其他費用'},
+  ];
+  const maxVal = Math.max(...monthly.flatMap(m=>series.map(s=>m[s.key])), 1);
+  const xStep = (width-padL-padR)/12;
+  const groupW = xStep*0.74, barW = groupW/series.length - 2;
+  const yScale = v => padT + (height-padT-padB) - (v/maxVal)*(height-padT-padB);
+  const baseY = yScale(0);
+
+  let svg = `<svg viewBox="0 0 ${width} ${height}" style="width:100%; height:auto; display:block;">`;
+  svg += `<line x1="${padL}" y1="${baseY.toFixed(1)}" x2="${width-padR}" y2="${baseY.toFixed(1)}" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>`;
+  monthly.forEach((m,i)=>{
+    const groupX = padL + i*xStep + (xStep-groupW)/2;
+    series.forEach((s,si)=>{
+      const v = m[s.key]||0;
+      if(v<=0) return;
+      const x = groupX + si*(barW+2);
+      const h = baseY - yScale(v);
+      const ratio = m.revenue? v/m.revenue : NaN;
+      svg += `<rect x="${x.toFixed(1)}" y="${yScale(v).toFixed(1)}" width="${barW.toFixed(1)}" height="${h.toFixed(1)}" fill="${s.color}" rx="1.5"><title>${m.month}月 ${s.label}：${fmt(v)}（${pct(ratio)} 佔營收）</title></rect>`;
+      if(isFinite(ratio)){
+        svg += `<text x="${(x+barW/2).toFixed(1)}" y="${(yScale(v)-4).toFixed(1)}" fill="${s.color}" font-size="10.2" font-weight="700" text-anchor="middle" transform="rotate(-45 ${(x+barW/2).toFixed(1)} ${(yScale(v)-4).toFixed(1)})">${pct(ratio)}</text>`;
+      }
+    });
+    svg += `<text x="${(padL+i*xStep+xStep/2).toFixed(1)}" y="${height-8}" fill="#9C9184" font-size="12" text-anchor="middle">${m.month}月</text>`;
+  });
+  svg += `</svg>`;
+
+  const legend = `<div style="display:flex;gap:20px;margin-top:8px;font-size:14.4px;color:var(--muted);flex-wrap:wrap;">
+    ${series.map(s=>`<span><span class="dot" style="background:${s.color}"></span>${s.label}</span>`).join('')}
+  </div>`;
+
+  document.getElementById('sgaBarWrap').innerHTML = svg + legend;
+}
+
+function renderRevenueCompareChart(monthly){
+  const width=1000, height=300, padL=60, padR=20, padT=34, padB=30;
+  const maxVal = Math.max(...monthly.flatMap(m=>[m.apparel, m.crossIndustry]), 1);
+  const xStep = (width-padL-padR)/12;
+  const groupW = xStep*0.68, barW = groupW/2 - 3;
+  const yScale = v => padT + (height-padT-padB) - (v/maxVal)*(height-padT-padB);
+  const baseY = yScale(0);
+  const colorA = '#C9A24B', colorB = '#8CA8D8';
+
+  let svg = `<svg viewBox="0 0 ${width} ${height}" style="width:100%; height:auto; display:block;">`;
+  svg += `<line x1="${padL}" y1="${baseY.toFixed(1)}" x2="${width-padR}" y2="${baseY.toFixed(1)}" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>`;
+  monthly.forEach((m,i)=>{
+    const groupX = padL + i*xStep + (xStep-groupW)/2;
+    const xA = groupX, xB = groupX + barW + 4;
+    const ratioA = m.revenue? m.apparel/m.revenue : NaN;
+    const ratioB = m.revenue? m.crossIndustry/m.revenue : NaN;
+    if(m.apparel>0){
+      const hA = baseY - yScale(m.apparel);
+      svg += `<rect x="${xA.toFixed(1)}" y="${yScale(m.apparel).toFixed(1)}" width="${barW.toFixed(1)}" height="${hA.toFixed(1)}" fill="${colorA}" rx="2"><title>${m.month}月 服飾收入：${fmt(m.apparel)}（${pct(ratioA)}）</title></rect>`;
+      if(hA>28) svg += `<text x="${(xA+barW/2).toFixed(1)}" y="${(yScale(m.apparel)-14).toFixed(1)}" fill="#E7C77A" font-size="9.6" font-weight="700" text-anchor="middle">${fmtCompact(m.apparel)}</text>
+        <text x="${(xA+barW/2).toFixed(1)}" y="${(yScale(m.apparel)-4).toFixed(1)}" fill="#E7C77A" font-size="9.6" font-weight="700" text-anchor="middle">${pct(ratioA)}</text>`;
+    }
+    if(m.crossIndustry>0){
+      const hB = baseY - yScale(m.crossIndustry);
+      svg += `<rect x="${xB.toFixed(1)}" y="${yScale(m.crossIndustry).toFixed(1)}" width="${barW.toFixed(1)}" height="${hB.toFixed(1)}" fill="${colorB}" rx="2"><title>${m.month}月 異業收入：${fmt(m.crossIndustry)}（${pct(ratioB)}）</title></rect>`;
+      if(hB>28) svg += `<text x="${(xB+barW/2).toFixed(1)}" y="${(yScale(m.crossIndustry)-14).toFixed(1)}" fill="#B7C6E8" font-size="9.6" font-weight="700" text-anchor="middle">${fmtCompact(m.crossIndustry)}</text>
+        <text x="${(xB+barW/2).toFixed(1)}" y="${(yScale(m.crossIndustry)-4).toFixed(1)}" fill="#B7C6E8" font-size="9.6" font-weight="700" text-anchor="middle">${pct(ratioB)}</text>`;
+    }
+    svg += `<text x="${(padL+i*xStep+xStep/2).toFixed(1)}" y="${height-8}" fill="#9C9184" font-size="12" text-anchor="middle">${m.month}月</text>`;
+  });
+  svg += `</svg>`;
+
+  const legend = `<div style="display:flex;gap:20px;margin-top:8px;font-size:14.4px;color:var(--muted);flex-wrap:wrap;">
+    <span><span class="dot" style="background:${colorA}"></span>4101 服飾收入</span>
+    <span><span class="dot" style="background:${colorB}"></span>4102 異業收入</span>
+  </div>`;
+
+  document.getElementById('revBarWrap').innerHTML = svg + legend;
+}
+
+function renderAnnual(){
+  const y = document.getElementById('annualYear').value;
+  const allowedMonths = getAllowedMonthsForRole(y);
+  const agg = computeAnnualPL(y, {allowedMonths});
+
+  const noteEl = document.getElementById('annualRestrictNote');
+  if(noteEl) noteEl.style.display = allowedMonths ? 'block' : 'none';
+
+  renderTrendChart(agg.monthly, state.annualTargets[y] || {});
+  renderRevenueCompareChart(agg.monthly);
+  renderSgaBarChart(agg.monthly);
+
+  const nonEmpty = agg.monthly.filter(m=> m.revenue!==0 || m.cogs!==0 || m.grossProfit!==0 || m.sga!==0 || m.aftertax!==0);
+  const rows = nonEmpty.map(m=>{
+    const gpRatio = m.revenue? m.grossProfit/m.revenue : NaN;
+    const netRatio = m.revenue? m.aftertax/m.revenue : NaN;
+    return `<tr>
+      <td>${m.month}月</td>
+      <td class="num">${fmt(m.revenue)}</td>
+      <td class="num">${fmt(m.cogs)}</td>
+      <td class="num">${fmt(m.grossProfit)}</td>
+      <td class="num" style="color:${signColor(gpRatio)};">${pct(gpRatio)}</td>
+      <td class="num">${fmt(m.sga)}</td>
+      <td class="num" style="color:${signColor(m.aftertax)}; font-weight:600;">${fmt(m.aftertax)}</td>
+      <td class="num" style="color:${signColor(netRatio)};">${pct(netRatio)}</td>
+    </tr>`;
+  }).join('');
+  if(!nonEmpty.length){
+    document.getElementById('annualTableBody').innerHTML = `<tr><td colspan="8"><div class="empty"><div class="big">📊</div>${y} 年度尚無資料</div></td></tr>`;
+    return;
+  }
+  const aggGpRatio = agg.revenue? agg.grossProfit/agg.revenue : NaN;
+  const aggNetRatio = agg.revenue? agg.aftertax/agg.revenue : NaN;
+  const totalRow = `<tr class="subtotal-row">
+      <td>全年合計</td>
+      <td class="num">${fmt(agg.revenue)}</td>
+      <td class="num">${fmt(agg.cogs)}</td>
+      <td class="num">${fmt(agg.grossProfit)}</td>
+      <td class="num" style="color:${signColor(aggGpRatio)};">${pct(aggGpRatio)}</td>
+      <td class="num">${fmt(agg.sga)}</td>
+      <td class="num" style="color:${signColor(agg.aftertax)};">${fmt(agg.aftertax)}</td>
+      <td class="num" style="color:${signColor(aggNetRatio)};">${pct(aggNetRatio)}</td>
+    </tr>`;
+  document.getElementById('annualTableBody').innerHTML = rows + totalRow;
+}
+
+/* ---------- render: entries ---------- */
+let entriesSort = { key:'date', dir:'desc' };
+
+function renderEntries(){
+  const fy = document.getElementById('filterYear').value;
+  const fm = document.getElementById('filterMonth').value;
+  let list = state.entries.slice();
+  if(fy && fm){
+    list = list.filter(e=> String(e.year)===String(fy) && String(e.month)===String(fm));
+  }
+
+  const dir = entriesSort.dir==='asc' ? 1 : -1;
+  const sortVal = (e)=>{
+    const acc = findAccount(e.code) || {name:'(未知科目)', type:'-'};
+    switch(entriesSort.key){
+      case 'date': return e.year*10000 + e.month*100 + e.day;
+      case 'code': return e.code||'';
+      case 'type': return acc.type||'';
+      case 'amount': return Number(e.amount)||0;
+      default: return 0;
+    }
+  };
+  list.sort((a,b)=>{
+    const va = sortVal(a), vb = sortVal(b);
+    if(va<vb) return -1*dir;
+    if(va>vb) return 1*dir;
+    return 0;
+  });
+
+  document.querySelectorAll('#sub-entries thead th.sortable .sort-arrow').forEach(el=>el.remove());
+  const activeTh = document.querySelector(`#sub-entries thead th.sortable[data-sortkey="${entriesSort.key}"]`);
+  if(activeTh) activeTh.insertAdjacentHTML('beforeend', `<span class="sort-arrow">${entriesSort.dir==='asc'?'▲':'▼'}</span>`);
+
+  const body = document.getElementById('entriesBody');
+  if(!list.length){
+    body.innerHTML = `<tr><td colspan="7"><div class="empty"><div class="big">🗂</div>尚無資料，請於上方新增第一筆收支明細</div></td></tr>`;
+  } else {
+    body.innerHTML = list.map(e=>{
+      const acc = findAccount(e.code) || {name:'(未知科目)', type:'-'};
+      const tagClass = acc.type==='收入' ? 'income' : 'expense';
+      return `<tr>
+        <td>${e.year}/${e.month}/${e.day}</td>
+        <td class="code-pill">${e.code}</td>
+        <td>${acc.name}</td>
+        <td><span class="tag ${tagClass}">${acc.type}</span></td>
+        <td class="num">${fmt(e.amount)}</td>
+        <td style="color:var(--muted)">${e.note||''}</td>
+        <td><button class="btn danger-txt" data-del="${e.id}">刪除</button></td>
+      </tr>`;
+    }).join('');
+  }
+  const total = list.reduce((s,e)=>s+(Number(e.amount)||0),0);
+  document.getElementById('entriesStat').innerHTML = `<span>筆數：<b>${list.length}</b></span><span>金額合計：<b>${fmt(total)}</b></span>`;
+
+  body.querySelectorAll('[data-del]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      state.entries = state.entries.filter(e=>e.id!==btn.dataset.del);
+      await saveEntries();
+      renderEntries(); renderMonthPL();
+    });
+  });
+}
+
+/* ---------- render: inventory ---------- */
+let inventorySort = { key:'date', dir:'desc' };
+
+function renderInventory(){
+  const body = document.getElementById('invBody');
+  let list = state.inventory.slice();
+
+  const dir = inventorySort.dir==='asc' ? 1 : -1;
+  const sortVal = (i)=>{
+    switch(inventorySort.key){
+      case 'date': return i.year*100 + i.month;
+      case 'code': return i.code || i.name || '';
+      default: return 0;
+    }
+  };
+  list.sort((a,b)=>{
+    const va=sortVal(a), vb=sortVal(b);
+    if(va<vb) return -1*dir;
+    if(va>vb) return 1*dir;
+    return 0;
+  });
+
+  document.querySelectorAll('#sub-inventory thead th.sortable .sort-arrow').forEach(el=>el.remove());
+  const activeTh = document.querySelector(`#sub-inventory thead th.sortable[data-sortkey="${inventorySort.key}"]`);
+  if(activeTh) activeTh.insertAdjacentHTML('beforeend', `<span class="sort-arrow">${inventorySort.dir==='asc'?'▲':'▼'}</span>`);
+
+  if(!list.length){
+    body.innerHTML = `<tr><td colspan="7"><div class="empty"><div class="big">📦</div>尚無品牌庫存資料</div></td></tr>`;
+  } else {
+    body.innerHTML = list.map(i=>{
+      const cost = (Number(i.open)||0)+(Number(i.purchase)||0)-(Number(i.close)||0);
+      const acc = i.code ? findAccount(i.code) : null;
+      const label = acc ? `${acc.code} ${acc.name}` : (i.name || '(未知會計科目)');
+      return `<tr>
+        <td>${i.year}/${i.month}</td>
+        <td>${label}</td>
+        <td class="num">${fmt(i.open)}</td>
+        <td class="num">${fmt(i.purchase)}</td>
+        <td class="num">${fmt(i.close)}</td>
+        <td class="num" style="color:var(--gold-bright);font-weight:600">${fmt(cost)}</td>
+        <td><button class="btn danger-txt" data-del="${i.id}">刪除</button></td>
+      </tr>`;
+    }).join('');
+  }
+  body.querySelectorAll('[data-del]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      state.inventory = state.inventory.filter(i=>i.id!==btn.dataset.del);
+      await saveInventory();
+      renderInventory(); renderMonthPL();
+    });
+  });
+}
+
+/* ---------- render: 年度目標登錄 ---------- */
+function renderTargetForm(){
+  const wrap = document.getElementById('targetMonthInputs');
+  const year = document.getElementById('targetYear').value;
+  const existing = state.annualTargets[year] || {};
+  wrap.innerHTML = Array.from({length:12},(_,i)=>i+1).map(m=>`
+    <div class="field"><label>${m}月目標</label><input type="number" id="target-${m}" placeholder="0" value="${existing[m]!=null? existing[m] : ''}"></div>
+  `).join('');
+}
+
+function renderTargetsChart(years){
+  const width=1000, height=280, padL=60, padR=20, padT=44, padB=30;
+  const palette = ['#C9A24B','#E8892E','#5C9E7A','#8CA8D8','#B5714B','#D6483D'];
+  const xStep = (width-padL-padR)/11;
+  const xPos = i => padL + i*xStep;
+
+  const allVals = years.flatMap(y=> Object.values(state.annualTargets[y]||{}).map(Number));
+  const maxVal = Math.max(...allVals, 1);
+  const yScale = v => padT + (height-padT-padB) - (v/maxVal)*(height-padT-padB);
+  const baseY = yScale(0);
+
+  let svg = `<svg viewBox="0 0 ${width} ${height}" style="width:100%; height:auto; display:block;">`;
+  svg += `<line x1="${padL}" y1="${baseY.toFixed(1)}" x2="${width-padR}" y2="${baseY.toFixed(1)}" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>`;
+  for(let m=1;m<=12;m++){
+    svg += `<text x="${xPos(m-1).toFixed(1)}" y="${height-8}" fill="#9C9184" font-size="12" text-anchor="middle">${m}月</text>`;
+  }
+  years.forEach((y,yi)=>{
+    const color = palette[yi % palette.length];
+    const t = state.annualTargets[y]||{};
+    const pts = Array.from({length:12},(_,i)=>i+1).map(m=>({m, v:t[m]!=null?Number(t[m]):null})).filter(p=>p.v!=null);
+    if(!pts.length) return;
+    const d = pts.map((p,j)=> `${j===0?'M':'L'} ${xPos(p.m-1).toFixed(1)} ${yScale(p.v).toFixed(1)}`).join(' ');
+    svg += `<path d="${d}" fill="none" stroke="${color}" stroke-width="2.4"/>`;
+    svg += pts.map(p=>{
+      const cx = xPos(p.m-1).toFixed(1), cy = yScale(p.v).toFixed(1);
+      return `<circle cx="${cx}" cy="${cy}" r="3.2" fill="${color}"><title>${y}年 ${p.m}月目標：${fmt(p.v)}</title></circle>
+        <text x="${cx}" y="${(yScale(p.v)-8 - (yi%2)*13).toFixed(1)}" fill="${color}" font-size="10.5" font-weight="700" text-anchor="middle">${fmtCompact(p.v)}</text>`;
+    }).join('');
+  });
+  svg += `</svg>`;
+
+  const legend = `<div style="display:flex;gap:18px;margin-top:8px;font-size:13px;color:var(--muted);flex-wrap:wrap;">
+    ${years.map((y,yi)=>`<span><span class="dot" style="background:${palette[yi%palette.length]}"></span>${y}年</span>`).join('')}
+  </div>`;
+
+  document.getElementById('targetsChartWrap').innerHTML = svg + legend;
+}
+
+function renderTargetsList(){
+  const chartWrap = document.getElementById('targetsChartWrap');
+  const manageWrap = document.getElementById('targetsManageList');
+  const years = Object.keys(state.annualTargets).filter(y=> state.annualTargets[y] && Object.keys(state.annualTargets[y]).length).sort();
+  if(!years.length){
+    chartWrap.innerHTML = `<div class="empty"><div class="big">🎯</div>尚未設定任何年度目標</div>`;
+    manageWrap.innerHTML = '';
+    return;
+  }
+  renderTargetsChart(years);
+  manageWrap.innerHTML = years.map(y=>{
+    const total = Object.values(state.annualTargets[y]||{}).reduce((s,v)=>s+(Number(v)||0),0);
+    return `<span class="tag expense" style="display:inline-flex; align-items:center; gap:8px; padding:5px 10px;">
+      ${y}年　${fmt(total)}
+      <button class="btn danger-txt" style="padding:0; font-size:11px;" data-del-target="${y}">刪除</button>
+    </span>`;
+  }).join('');
+  manageWrap.querySelectorAll('[data-del-target]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const ok = await showConfirm(`確定要刪除 ${btn.dataset.delTarget} 年度的全部目標設定嗎？`, {okLabel:"刪除", danger:true});
+      if(!ok) return;
+      delete state.annualTargets[btn.dataset.delTarget];
+      await saveAnnualTargets();
+      renderTargetsList();
+      if(document.getElementById('targetYear').value===btn.dataset.delTarget) renderTargetForm();
+    });
+  });
+}
+
+/* ---------- render: 品牌庫存資料卡片 ---------- */
+function renderProductCards(){
+  const grid = document.getElementById('productCardGrid');
+  if(!state.brandProducts.length){
+    grid.innerHTML = `<div class="panel"><div class="empty"><div class="big">🏷️</div>尚無品牌品項資料卡片，請於上方新增</div></div>`;
+    return;
+  }
+  grid.innerHTML = state.brandProducts.map(p=>{
+    const acc = findAccount(p.code);
+    return `<div class="account-card">
+      <h4>${p.category}｜${acc? acc.code : p.code} ${p.name}</h4>
+      <table>
+        <tr><td>單位成本</td><td>${fmt(p.unitCost)}／盒</td></tr>
+        <tr><td>包裝規格</td><td>${p.unitsPerBox||'-'} 入/盒，${p.boxesPerCarton||'-'} 盒/箱</td></tr>
+        <tr><td>委外製造商</td><td>${p.manufacturer||'-'}</td></tr>
+        <tr><td>製造商地址</td><td>${p.manufacturerAddress||'-'}</td></tr>
+      </table>
+      <div style="display:flex; gap:8px; padding:10px 12px;">
+        <button class="btn ghost small" data-edit-product="${p.code}">編輯</button>
+        <button class="btn danger-txt" data-del-product="${p.code}">刪除</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  grid.querySelectorAll('[data-edit-product]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const p = state.brandProducts.find(x=>x.code===btn.dataset.editProduct);
+      if(!p) return;
+      document.getElementById('pCategory').value = p.category;
+      document.getElementById('pCode').value = p.code;
+      document.getElementById('pName').value = p.name;
+      document.getElementById('pUnitCost').value = p.unitCost;
+      document.getElementById('pUnitsPerBox').value = p.unitsPerBox;
+      document.getElementById('pBoxesPerCarton').value = p.boxesPerCarton;
+      document.getElementById('pManufacturer').value = p.manufacturer;
+      document.getElementById('pManufacturerAddress').value = p.manufacturerAddress;
+      document.getElementById('pCategory').scrollIntoView({behavior:'smooth', block:'center'});
+    });
+  });
+  grid.querySelectorAll('[data-del-product]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const ok = await showConfirm('確定要刪除此品牌品項資料卡片嗎？（不會刪除已登錄的庫存明細）', {okLabel:"刪除", danger:true});
+      if(!ok) return;
+      state.brandProducts = state.brandProducts.filter(p=>p.code!==btn.dataset.delProduct);
+      await saveBrandProducts();
+      renderProductCards();
+    });
+  });
+}
+
+/* ---------- render: 品牌庫存表（年度報表） ---------- */
+function renderProductInventoryBarChart(monthsData){
+  const width=900, height=270, padL=55, padR=20, padT=50, padB=34;
+  const n = monthsData.length;
+  const xStep = (width-padL-padR)/n;
+  const barW = xStep*0.46;
+  const maxVal = Math.max(...monthsData.map(d=>d.boxes||0), 1);
+  const yScale = v => padT + (height-padT-padB) - (v/maxVal)*(height-padT-padB);
+  const baseY = yScale(0);
+
+  let svg = `<svg viewBox="0 0 ${width} ${height}" style="width:100%; height:auto; display:block;">`;
+  svg += `<line x1="${padL}" y1="${baseY.toFixed(1)}" x2="${width-padR}" y2="${baseY.toFixed(1)}" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>`;
+  monthsData.forEach((d,i)=>{
+    const cx = padL + i*xStep + xStep/2;
+    const x = cx - barW/2;
+    if(d.boxes>0){
+      const h = baseY - yScale(d.boxes);
+      svg += `<rect x="${x.toFixed(1)}" y="${yScale(d.boxes).toFixed(1)}" width="${barW.toFixed(1)}" height="${h.toFixed(1)}" fill="#C9A24B" rx="2"><title>${d.month}月：${d.boxes} 盒（庫存總價值 ${d.closeVal===null?'—':fmt(d.closeVal)}）</title></rect>`;
+      svg += `<text x="${cx.toFixed(1)}" y="${(yScale(d.boxes)-24).toFixed(1)}" fill="#E7C77A" font-size="12" font-weight="700" text-anchor="middle">${d.boxes}盒</text>`;
+      svg += `<text x="${cx.toFixed(1)}" y="${(yScale(d.boxes)-8).toFixed(1)}" fill="#E7C77A" font-size="12" font-weight="700" text-anchor="middle">${d.closeVal===null? '' : fmt(d.closeVal)}</text>`;
+    } else {
+      svg += `<text x="${cx.toFixed(1)}" y="${(baseY-8).toFixed(1)}" fill="#5c554a" font-size="11" text-anchor="middle">—</text>`;
+    }
+    svg += `<text x="${cx.toFixed(1)}" y="${height-12}" fill="#9C9184" font-size="12" text-anchor="middle">${d.month}月</text>`;
+  });
+  svg += `</svg>`;
+  return svg;
+}
+
+function renderBrandInventoryReport(){
+  const year = document.getElementById('brandReportYear').value;
+  const half = document.getElementById('brandReportHalf').value;
+  const months = half==='H1' ? [1,2,3,4,5,6] : [7,8,9,10,11,12];
+  const wrap = document.getElementById('brandReportCards');
+  if(!state.brandProducts.length){
+    wrap.innerHTML = `<div class="panel"><div class="empty"><div class="big">📦</div>尚無品牌品項資料，請至【資料登錄】→【品牌庫存登錄】新增產品資料卡片</div></div>`;
+    return;
+  }
+  wrap.innerHTML = state.brandProducts.map(p=>{
+    const acc = findAccount(p.code);
+    const monthsData = months.map(m=>{
+      const inv = state.inventory.find(iv=> String(iv.year)===String(year) && String(iv.month)===String(m) && iv.code===p.code);
+      let boxes = 0;
+      const closeVal = inv ? (Number(inv.close)||0) : null;
+      if(inv && p.unitCost>0){
+        boxes = Math.round((Number(inv.close)||0)/p.unitCost);
+      }
+      return { month:m, boxes, closeVal };
+    });
+    return `<div class="panel">
+      <div class="panel-title">${p.category}｜${acc? acc.code : p.code} ${p.name}</div>
+      <div class="footnote" style="margin-bottom:12px;">
+        單位成本：${fmt(p.unitCost)}／盒　｜　包裝：${p.unitsPerBox||'-'} 入/盒，${p.boxesPerCarton||'-'} 盒/箱　｜　委外製造商：${p.manufacturer||'-'}　｜　地址：${p.manufacturerAddress||'-'}
+      </div>
+      ${renderProductInventoryBarChart(monthsData)}
+    </div>`;
+  }).join('');
+}
+
+/* ---------- render: accounts ---------- */
+let editingAccountCode = null;
+
+function renderAccounts(){
+  const grid = document.getElementById('accountGrid');
+  grid.innerHTML = GROUPS.map(g=>{
+    const items = allAccounts().filter(a=>a.group===g.key);
+    if(!items.length) return '';
+    return `<div class="account-card">
+      <h4>${g.label}</h4>
+      <table>${items.map(a=>{
+        const isSub = a.code.length > 4;
+        const isDefault = EXPLICIT_PL_CODES.has(a.code) || a.code==='5204';
+        const actions = `<td style="white-space:nowrap; text-align:right;">
+               <button class="btn ghost small" style="padding:2px 8px; font-size:10.5px;" data-edit-acc="${a.code}">編輯</button>
+               <button class="btn danger-txt" style="padding:2px 6px; font-size:10.5px;" data-del-acc="${a.code}">刪除</button>
+             </td>`;
+        return `<tr class="${isSub?'sub-item-row':''}"><td class="code-pill">${a.code}</td><td>${a.name}<br><span style="color:var(--muted);font-size:11px">${a.note||''}</span></td>${actions}</tr>`;
+      }).join('')}</table>
+    </div>`;
+  }).join('');
+
+  const cGroup = document.getElementById('cGroup');
+  cGroup.innerHTML = GROUPS.map(g=>`<option value="${g.key}">${g.label}</option>`).join('');
+
+  grid.querySelectorAll('[data-edit-acc]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const a = state.accounts.find(x=>x.code===btn.dataset.editAcc);
+      if(!a) return;
+      editingAccountCode = a.code;
+      document.getElementById('cCode').value = a.code;
+      document.getElementById('cCode').disabled = true;
+      document.getElementById('cType').value = a.type;
+      document.getElementById('cName').value = a.name;
+      document.getElementById('cGroup').value = a.group;
+      document.getElementById('addAccountBtn').textContent = '更新科目';
+      const isDefault = EXPLICIT_PL_CODES.has(a.code) || a.code==='5204';
+      document.getElementById('accountEditWarning').style.display = isDefault ? 'block' : 'none';
+      document.getElementById('cCode').scrollIntoView({behavior:'smooth', block:'center'});
+    });
+  });
+  grid.querySelectorAll('[data-del-acc]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const isDefault = EXPLICIT_PL_CODES.has(btn.dataset.delAcc) || btn.dataset.delAcc==='5204';
+      const msg = isDefault
+        ? '此為系統預設科目，刪除後損益表中該科目金額將以 0 呈現，且已使用此科目的歷史收支明細／庫存資料將不再計入任何損益計算（資料本身不會被刪除，僅不再彙總）。確定要刪除嗎？'
+        : '確定要刪除此科目嗎？已使用此科目的收支明細／庫存資料將顯示為「未知科目」，且不再計入損益計算，但資料本身不會被刪除。';
+      const ok = await showConfirm(msg, {okLabel:"刪除", danger:true});
+      if(!ok) return;
+      state.accounts = state.accounts.filter(a=>a.code!==btn.dataset.delAcc);
+      await saveAccounts();
+      renderAccounts();
+      document.getElementById('fAccount').innerHTML = accountOptionsGrouped();
+      document.getElementById('iCode').innerHTML = inventoryAccountOptions();
+      document.getElementById('pCode').innerHTML = inventoryAccountOptions();
+      renderMonthPL();
+    });
+  });
+}
+
+
+/* ---------- import (CSV / XLSX) ---------- */
+let pendingImportRows = [];
+
+const HEADER_MAP = {
+  year: ["年","年份","西元年"],
+  month: ["月","月份"],
+  day: ["日","日期(日)"],
+  date: ["日期","交易日期","發生日期"],
+  code: ["科目代號","代號","科目","會計科目代號","會計科目","科目名稱","項目"],
+  amount: ["金額","金额","發生金額"],
+  note: ["備註","備注","說明","摘要"],
+};
+function matchHeader(row, keys){
+  const rowKeys = Object.keys(row);
+  for(const k of keys){
+    const hit = rowKeys.find(rk=> rk.trim() === k);
+    if(hit) return hit;
+  }
+  return null;
+}
+function resolveAccountCode(raw){
+  if(raw===undefined || raw===null) return null;
+  const s = String(raw).trim();
+  if(!s) return null;
+  if(findAccount(s)) return s;
+  const digitMatch = s.match(/(\d{4,6})/);
+  if(digitMatch && findAccount(digitMatch[1])) return digitMatch[1];
+  const byCodeInStr = allAccounts().find(a=> s.includes(a.code));
+  if(byCodeInStr) return byCodeInStr.code;
+  const byName = allAccounts().find(a=> s.includes(a.name));
+  if(byName) return byName.code;
+  return null;
+}
+function parseDateCell(val){
+  if(typeof val === 'number'){
+    const d = XLSX.SSF.parse_date_code(val);
+    if(d) return {y:d.y, m:d.m, d:d.d};
+  }
+  if(typeof val === 'string'){
+    const m = val.match(/(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+    if(m) return {y:Number(m[1]), m:Number(m[2]), d:Number(m[3])};
+  }
+  return null;
+}
+
+function downloadTemplate(){
+  const bom = "\uFEFF";
+  const csv = bom + "年,月,日,科目代號,金額,備註\n2026,7,5,4101,250000,7月服飾收入範例\n2026,7,21,5202,60000,異業進貨範例\n";
+  const blob = new Blob([csv], {type:"text/csv;charset=utf-8;"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = "收支明細匯入範本.csv";
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function exportAllDataToExcel(){
+  const wb = XLSX.utils.book_new();
+
+  // ① 收支明細
+  const entriesRows = state.entries.slice()
+    .sort((a,b)=> (a.year-b.year)||(a.month-b.month)||(a.day-b.day))
+    .map(e=>{
+      const acc = findAccount(e.code) || {};
+      return {
+        年: e.year, 月: e.month, 日: e.day,
+        科目代號: e.code, 會計科目: acc.name||'', 收支類別: acc.type||'',
+        金額: Number(e.amount)||0, 備註: e.note||''
+      };
+    });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(entriesRows.length?entriesRows:[{提示:'尚無資料'}]), '收支明細');
+
+  // ② 品牌庫存登錄
+  const invRows = state.inventory.slice()
+    .sort((a,b)=> (a.year-b.year)||(a.month-b.month))
+    .map(i=>{
+      const acc = findAccount(i.code) || {};
+      const cost = (Number(i.open)||0)+(Number(i.purchase)||0)-(Number(i.close)||0);
+      return {
+        年: i.year, 月: i.month, 會計科目代號: i.code, 會計科目名稱: acc.name||'',
+        期初庫存: Number(i.open)||0, 本月進貨: Number(i.purchase)||0, 期末庫存: Number(i.close)||0,
+        本月銷貨成本: cost
+      };
+    });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(invRows.length?invRows:[{提示:'尚無資料'}]), '品牌庫存登錄');
+
+  // ③ 品牌庫存卡（產品主檔）
+  const productRows = state.brandProducts.map(p=>{
+    const acc = findAccount(p.code) || {};
+    return {
+      產品分類: p.category||'', 會計科目代號: p.code||'', 會計科目名稱: acc.name||'',
+      產品品名: p.name||'', '單位成本(每盒)': Number(p.unitCost)||0,
+      '入/盒': p.unitsPerBox||'', '盒/箱': p.boxesPerCarton||'',
+      委外製造商名稱: p.manufacturer||'', 委外製造商地址: p.manufacturerAddress||''
+    };
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(productRows.length?productRows:[{提示:'尚無資料'}]), '品牌庫存卡');
+
+  // ④ 會計科目
+  const acctRows = state.accounts.map(a=>{
+    const g = GROUPS.find(g=>g.key===a.group);
+    return {
+      科目代號: a.code, 科目名稱: a.name, 收入支出: a.type,
+      損益分類: g? g.label : a.group, 備註: a.note||''
+    };
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(acctRows), '會計科目');
+
+  // ⑤ 年度目標
+  const targetYears = Object.keys(state.annualTargets).sort();
+  const targetRows = targetYears.map(y=>{
+    const t = state.annualTargets[y]||{};
+    const row = { 年度: y };
+    let total = 0;
+    for(let m=1;m<=12;m++){
+      row[`${m}月`] = t[m]!=null ? Number(t[m]) : '';
+      if(t[m]!=null) total += Number(t[m])||0;
+    }
+    row['全年合計'] = total;
+    return row;
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(targetRows.length?targetRows:[{提示:'尚無資料'}]), '年度目標');
+
+  // ⑥ 損益表發布狀態
+  const pubKeys = Object.keys(state.settings.publishedMonths||{}).sort();
+  const pubRows = pubKeys.map(k=>{
+    const [y,m] = k.split('-');
+    return { 年: y, 月: m, 已發布: state.settings.publishedMonths[k] ? '是' : '否' };
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(pubRows.length?pubRows:[{提示:'尚無資料'}]), '損益表發布狀態');
+
+  const todayStr = new Date().toISOString().slice(0,10).replace(/-/g,'');
+  XLSX.writeFile(wb, `MOOD損益表系統_資料匯出_${todayStr}.xlsx`);
+  showToast('已匯出 Excel 檔案，請至瀏覽器下載項目查看');
+}
+
+/* ---------- 雲端試算表同步 ---------- */
+function buildCloudSyncPayload(){
+  return {
+    exportedAt: new Date().toISOString(),
+    entries: state.entries.map(e=>{
+      const acc = findAccount(e.code) || {};
+      return { year:e.year, month:e.month, day:e.day, code:e.code, accName:acc.name||'', type:acc.type||'', amount:Number(e.amount)||0, note:e.note||'' };
+    }),
+    inventory: state.inventory.map(i=>{
+      const acc = findAccount(i.code) || {};
+      const cost = (Number(i.open)||0)+(Number(i.purchase)||0)-(Number(i.close)||0);
+      return { year:i.year, month:i.month, code:i.code, accName:acc.name||'', open:Number(i.open)||0, purchase:Number(i.purchase)||0, close:Number(i.close)||0, cost };
+    }),
+    brandProducts: state.brandProducts.map(p=>({
+      category:p.category||'', code:p.code||'', name:p.name||'', unitCost:Number(p.unitCost)||0,
+      unitsPerBox:p.unitsPerBox||'', boxesPerCarton:p.boxesPerCarton||'', manufacturer:p.manufacturer||'', manufacturerAddress:p.manufacturerAddress||''
+    })),
+    accounts: state.accounts.map(a=>({ code:a.code, name:a.name, type:a.type, group:(GROUPS.find(g=>g.key===a.group)||{}).label||a.group, note:a.note||'' })),
+    annualTargets: state.annualTargets,
+    publishedMonths: state.settings.publishedMonths || {}
+  };
+}
+
+let autoSyncTimer = null;
+const AUTO_SYNC_INTERVAL_MS = 5 * 60 * 1000; // 5 分鐘（備援用的定期同步，非必要）
+let changeSyncDebounce = null;
+const CHANGE_SYNC_DELAY_MS = 2000; // 資料異動後，等待2秒無其他異動再同步，避免連續操作時瘋狂發送請求
+
+async function syncToCloud(silent){
+  const url = (state.settings.cloudSyncUrl || document.getElementById('cloudSyncUrl').value || '').trim();
+  const statusEl = document.getElementById('cloudSyncStatus');
+  if(!url){ if(!silent) showToast('請先貼上您的 Google Apps Script 網址並儲存'); return; }
+  if(statusEl) statusEl.textContent = '同步中...';
+  try{
+    await fetch(url, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(buildCloudSyncPayload())
+    });
+    const timeStr = new Date().toLocaleString('zh-TW');
+    if(statusEl) statusEl.textContent = `資料已於 ${timeStr} 自動同步（因跨網域限制無法讀取伺服器回應，請至您的 Google 試算表確認資料是否已更新）`;
+    if(!silent) showToast('已送出同步請求，請至試算表確認');
+  }catch(err){
+    if(statusEl) statusEl.textContent = '同步失敗，請確認網址是否正確、Apps Script 是否已部署為「任何人皆可存取」';
+    if(!silent) showToast('同步失敗');
+  }
+}
+
+// 每次資料異動（新增/編輯/刪除）後自動觸發，不需使用者手動按同步
+function scheduleAutoSyncOnChange(){
+  if(!state.settings.cloudSyncUrl) return; // 尚未設定同步網址，不做任何事
+  clearTimeout(changeSyncDebounce);
+  changeSyncDebounce = setTimeout(()=>{ syncToCloud(true); }, CHANGE_SYNC_DELAY_MS);
+}
+
+function startAutoSync(){
+  stopAutoSync();
+  autoSyncTimer = setInterval(()=>{ syncToCloud(true); }, AUTO_SYNC_INTERVAL_MS);
+}
+function stopAutoSync(){
+  if(autoSyncTimer){ clearInterval(autoSyncTimer); autoSyncTimer = null; }
+}
+
+function handleImportFile(file){
+  const defYear = document.getElementById('impYear').value;
+  const defMonth = document.getElementById('impMonth').value;
+  const overridePeriod = document.getElementById('impOverridePeriod').checked;
+  const reader = new FileReader();
+  reader.onload = (e)=>{
+    let rows = [];
+    try{
+      const data = new Uint8Array(e.target.result);
+      const wb2 = XLSX.read(data, {type:'array', cellDates:false});
+      const sheet = wb2.Sheets[wb2.SheetNames[0]];
+      rows = XLSX.utils.sheet_to_json(sheet, {defval:''});
+    }catch(err){
+      showToast('檔案解析失敗，請確認格式為 CSV 或 Excel');
+      return;
+    }
+    pendingImportRows = rows.map((row, idx)=>{
+      const codeKey = matchHeader(row, HEADER_MAP.code);
+      const amtKey = matchHeader(row, HEADER_MAP.amount);
+      const noteKey = matchHeader(row, HEADER_MAP.note);
+      const yearKey = matchHeader(row, HEADER_MAP.year);
+      const monthKey = matchHeader(row, HEADER_MAP.month);
+      const dayKey = matchHeader(row, HEADER_MAP.day);
+      const dateKey = matchHeader(row, HEADER_MAP.date);
+
+      let y = yearKey ? row[yearKey] : null;
+      let m = monthKey ? row[monthKey] : null;
+      let d = dayKey ? row[dayKey] : null;
+      if(!d && dateKey){
+        const parsed = parseDateCell(row[dateKey]);
+        if(parsed){ y=y||parsed.y; m=m||parsed.m; d=d||parsed.d; }
+      }
+
+      if(overridePeriod){
+        y = defYear;
+        m = defMonth;
+      } else {
+        y = y || defYear;
+        m = m || defMonth;
+      }
+      d = d || 1;
+
+      const code = codeKey ? resolveAccountCode(row[codeKey]) : null;
+      const amount = amtKey ? Number(row[amtKey]) : NaN;
+      const note = noteKey ? row[noteKey] : '';
+      const acc = code ? findAccount(code) : null;
+
+      let status = 'ok';
+      if(!code || !acc) status = 'nocode';
+      else if(acc.group==='cogsBrand') status = 'cogsbrand';
+      else if(!isFinite(amount) || amount===0) status = 'noamount';
+
+      return { rowNum: idx+2, year:Number(y), month:Number(m), day:Number(d), code: code||(codeKey?String(row[codeKey]).trim():''), amount, note, status, accName: acc? acc.name : '—' };
+    });
+    importShowOnlyBad = false;
+    renderImportPreview();
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+let importShowOnlyBad = false;
+
+function renderImportPreview(){
+  const wrap = document.getElementById('importPreviewWrap');
+  const body = document.getElementById('importPreviewBody');
+  if(!pendingImportRows.length){ wrap.style.display='none'; return; }
+  wrap.style.display='block';
+  const ok = pendingImportRows.filter(r=>r.status==='ok').length;
+  const bad = pendingImportRows.length - ok;
+  document.getElementById('importStat').innerHTML =
+    `<span>共讀取 <b>${pendingImportRows.length}</b> 筆</span><span style="color:var(--income)">可匯入 <b>${ok}</b> 筆</span>` +
+    (bad? `<span style="color:var(--danger); cursor:pointer; text-decoration:underline;" id="toggleBadRowsBtn">略過 <b>${bad}</b> 筆（點擊只看略過項目）</span>`:'');
+
+  const list = importShowOnlyBad ? pendingImportRows.filter(r=>r.status!=='ok') : pendingImportRows;
+
+  if(importShowOnlyBad && !list.length){
+    body.innerHTML = `<tr><td colspan="9"><div class="empty">目前沒有被略過的資料列</div></td></tr>`;
+  } else {
+    body.innerHTML = list.map(r=>{
+      const reason = r.status==='nocode' ? '科目代號無法對應到會計科目表，請確認代號或名稱是否正確'
+        : r.status==='cogsbrand' ? '5204品牌進貨系列需至【品牌庫存登錄】登錄，不開放一般收支匯入'
+        : r.status==='noamount' ? '金額欄位空白、非數字，或金額為 0'
+        : '';
+      const badge = r.status==='ok' ? `<span class="tag income">可匯入</span>`
+        : r.status==='nocode' ? `<span class="tag expense">科目不存在</span>`
+        : r.status==='cogsbrand' ? `<span class="tag expense">請於品牌庫存頁登錄</span>`
+        : `<span class="tag expense">金額異常</span>`;
+      return `<tr style="${r.status!=='ok'?'opacity:.85; background:rgba(197,72,61,0.06);':''}">
+        <td style="color:var(--muted)">第${r.rowNum}列</td>
+        <td>${r.year||''}</td><td>${r.month||''}</td><td>${r.day||''}</td>
+        <td class="code-pill">${r.code||''}</td><td>${r.accName}</td>
+        <td class="num">${isFinite(r.amount)?fmt(r.amount):'—'}</td>
+        <td style="color:var(--muted)">${r.note||''}</td>
+        <td>${badge}${reason? `<div style="font-size:10.5px;color:var(--danger);margin-top:3px;max-width:160px;">${reason}</div>`:''}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  const toggleBtn = document.getElementById('toggleBadRowsBtn');
+  if(toggleBtn){
+    toggleBtn.addEventListener('click', ()=>{
+      importShowOnlyBad = !importShowOnlyBad;
+      renderImportPreview();
+    });
+  }
+}
+
+async function confirmImportRows(){
+  const valid = pendingImportRows.filter(r=>r.status==='ok');
+  if(!valid.length){ showToast('沒有可匯入的資料'); return; }
+  valid.forEach(r=>{
+    state.entries.push({id:uid(), year:r.year, month:r.month, day:r.day, code:r.code, amount:r.amount, note:r.note});
+  });
+  await saveEntries();
+  pendingImportRows = [];
+  importShowOnlyBad = false;
+  document.getElementById('importPreviewWrap').style.display='none';
+  document.getElementById('impFile').value = '';
+  document.getElementById('impFileName').textContent = '';
+  renderEntries(); renderMonthPL();
+  showToast(`已匯入 ${valid.length} 筆收支明細`);
+}
+
+/* ---------- init selects ---------- */
+function refreshAllSelectors(){
+  document.getElementById('cloudSyncUrl').value = state.settings.cloudSyncUrl || '';
+  document.getElementById('autoSyncToggle').checked = !!state.settings.autoSyncEnabled;
+  if(state.settings.autoSyncEnabled && state.settings.cloudSyncUrl){
+    startAutoSync();
+  }
+
+  const dy=document.getElementById('dashYear').value || 2026, dm=document.getElementById('dashMonth').value || new Date().getMonth()+1;
+  document.getElementById('dashYear').innerHTML = yearOptions(dy);
+  document.getElementById('dashMonth').innerHTML = monthOptions(dm);
+
+  document.getElementById('plYearYear').innerHTML = yearOptions(document.getElementById('plYearYear').value||2026);
+  document.getElementById('annualYear').innerHTML = yearOptions(document.getElementById('annualYear').value||2026);
+
+  document.getElementById('fMonth').innerHTML = monthOptions(new Date().getMonth()+1);
+  document.getElementById('fAccount').innerHTML = accountOptionsGrouped();
+
+  document.getElementById('iMonth').innerHTML = monthOptions(new Date().getMonth()+1);
+  document.getElementById('iCode').innerHTML = inventoryAccountOptions();
+  document.getElementById('pCode').innerHTML = inventoryAccountOptions();
+
+  document.getElementById('brandReportYear').innerHTML = yearOptions(document.getElementById('brandReportYear').value||2026);
+
+  document.getElementById('targetYear').innerHTML = yearOptions(document.getElementById('targetYear').value||2026);
+  renderTargetForm();
+
+  document.getElementById('impYear').innerHTML = yearOptions(document.getElementById('impYear').value||2026);
+  document.getElementById('impMonth').innerHTML = monthOptions(document.getElementById('impMonth').value||new Date().getMonth()+1);
+
+  const fy=document.getElementById('filterYear').value || document.getElementById('fYear').value, fm=document.getElementById('filterMonth').value || document.getElementById('fMonth').value;
+  document.getElementById('filterYear').innerHTML = `<option value="">全部</option>` + yearOptions(fy);
+  document.getElementById('filterMonth').innerHTML = `<option value="">全部</option>` + monthOptions(fm);
+}
+
+/* ---------- role permissions ---------- */
+function applyRolePermissions(){
+  const role = ROLES[currentRole];
+  document.getElementById('roleBadge').textContent = `目前身份：${role.label}`;
+  document.querySelectorAll('#topTabs .tab').forEach(t=>{
+    t.style.display = role.tabs.includes(t.dataset.major) ? '' : 'none';
+  });
+  document.getElementById('taxToggle').disabled = !role.canEdit;
+  document.getElementById('taxRate').disabled = !role.canEdit;
+  document.getElementById('publishToggle').disabled = !role.canEdit;
+  document.getElementById('exportExcelBtn').style.display = role.canEdit ? '' : 'none';
+
+  const firstTab = document.querySelector(`#topTabs .tab[data-major="${role.tabs[0]}"]`);
+  if(firstTab) firstTab.click();
+}
+
+/* ---------- events ---------- */
+function bindEvents(){
+  document.querySelectorAll('#topTabs .tab').forEach(t=>{
+    t.addEventListener('click', ()=>{
+      document.querySelectorAll('#topTabs .tab').forEach(x=>x.classList.remove('active'));
+      t.classList.add('active');
+      document.querySelectorAll('#appRoot > .view').forEach(v=>v.classList.remove('active'));
+      document.getElementById('major-'+t.dataset.major).classList.add('active');
+      if(t.dataset.major==='reports'){ renderAnnual(); renderMonthPL(); renderYearPL(); renderBrandInventoryReport(); }
+      if(t.dataset.major==='dataEntry'){ renderTargetForm(); renderTargetsList(); renderEntries(); renderInventory(); renderProductCards(); renderAccounts(); }
+    });
+  });
+
+  document.querySelectorAll('#sub-entries thead th.sortable').forEach(th=>{
+    th.addEventListener('click', ()=>{
+      const key = th.dataset.sortkey;
+      if(entriesSort.key===key){ entriesSort.dir = entriesSort.dir==='asc'?'desc':'asc'; }
+      else { entriesSort = { key, dir:'asc' }; }
+      renderEntries();
+    });
+  });
+
+  document.querySelectorAll('#sub-inventory thead th.sortable').forEach(th=>{
+    th.addEventListener('click', ()=>{
+      const key = th.dataset.sortkey;
+      if(inventorySort.key===key){ inventorySort.dir = inventorySort.dir==='asc'?'desc':'asc'; }
+      else { inventorySort = { key, dir:'asc' }; }
+      renderInventory();
+    });
+  });
+
+  document.querySelectorAll('.subtabs').forEach(bar=>{
+    bar.querySelectorAll('.subtab').forEach(t=>{
+      t.addEventListener('click', ()=>{
+        bar.querySelectorAll('.subtab').forEach(x=>x.classList.remove('active'));
+        t.classList.add('active');
+        const parent = bar.parentElement;
+        // 僅切換「直屬子層」的 .subview，避免影響巢狀在更深層的其他分頁狀態
+        Array.from(parent.children).filter(c=>c.classList.contains('subview')).forEach(v=>v.classList.remove('active'));
+        const target = document.getElementById('sub-'+t.dataset.sub);
+        if(target) target.classList.add('active');
+        if(t.dataset.sub==='annualReport') renderAnnual();
+        if(t.dataset.sub==='plReport'){ renderMonthPL(); renderYearPL(); }
+        if(t.dataset.sub==='brandInventoryReport') renderBrandInventoryReport();
+        if(t.dataset.sub==='plMonth') renderMonthPL();
+        if(t.dataset.sub==='plYear') renderYearPL();
+        if(t.dataset.sub==='entries') renderEntries();
+        if(t.dataset.sub==='targets'){ renderTargetForm(); renderTargetsList(); }
+        if(t.dataset.sub==='productCards') renderProductCards();
+        if(t.dataset.sub==='inventory') renderInventory();
+        if(t.dataset.sub==='accounts') renderAccounts();
+      });
+    });
+  });
+
+  document.getElementById('dashYear').addEventListener('change', renderMonthPL);
+  document.getElementById('dashMonth').addEventListener('change', renderMonthPL);
+  document.getElementById('taxToggle').addEventListener('change', async (e)=>{
+    const y=document.getElementById('dashYear').value, m=document.getElementById('dashMonth').value;
+    state.settings.taxMonths[`${y}-${m}`] = e.target.checked;
+    await saveSettings();
+    renderMonthPL();
+  });
+  document.getElementById('taxRate').addEventListener('change', async (e)=>{
+    state.settings.rate = Number(e.target.value)||0;
+    await saveSettings();
+    renderMonthPL();
+  });
+  document.getElementById('publishToggle').addEventListener('change', async (e)=>{
+    const y=document.getElementById('dashYear').value, m=document.getElementById('dashMonth').value;
+    state.settings.publishedMonths[`${y}-${m}`] = e.target.checked;
+    await saveSettings();
+    renderMonthPL();
+    showToast(e.target.checked ? `已發布 ${y}年${m}月 損益表給股東` : `已將 ${y}年${m}月 損益表設為未發布`);
+  });
+
+  document.getElementById('plYearYear').addEventListener('change', renderYearPL);
+  document.getElementById('annualYear').addEventListener('change', renderAnnual);
+
+  document.getElementById('downloadTemplate').addEventListener('click', downloadTemplate);
+  document.getElementById('impFile').addEventListener('change', (e)=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    document.getElementById('impFileName').textContent = file.name;
+    handleImportFile(file);
+  });
+  document.getElementById('cancelImport').addEventListener('click', ()=>{
+    pendingImportRows = [];
+    importShowOnlyBad = false;
+    document.getElementById('importPreviewWrap').style.display='none';
+    document.getElementById('impFile').value='';
+    document.getElementById('impFileName').textContent='';
+  });
+  document.getElementById('confirmImport').addEventListener('click', confirmImportRows);
+
+  // 收支明細清單預設跟隨「新增收支明細」表單目前選擇的年／月，避免預設列出全部月份造成混亂
+  document.getElementById('fYear').addEventListener('change', ()=>{
+    document.getElementById('filterYear').value = document.getElementById('fYear').value;
+    renderEntries();
+  });
+  document.getElementById('fMonth').addEventListener('change', ()=>{
+    document.getElementById('filterMonth').value = document.getElementById('fMonth').value;
+    renderEntries();
+  });
+
+  document.getElementById('addEntryBtn').addEventListener('click', async ()=>{
+    const year=document.getElementById('fYear').value;
+    const month=document.getElementById('fMonth').value;
+    const day=document.getElementById('fDay').value;
+    const code=document.getElementById('fAccount').value;
+    const amount=document.getElementById('fAmount').value;
+    const note=document.getElementById('fNote').value;
+    if(!year||!month||!day||!code||!amount){ showToast('請完整填寫年、月、日、科目、金額'); return; }
+    state.entries.push({id:uid(), year:Number(year), month:Number(month), day:Number(day), code, amount:Number(amount), note});
+    await saveEntries();
+    document.getElementById('fAmount').value='';
+    document.getElementById('fNote').value='';
+    renderEntries(); renderMonthPL();
+  });
+
+  document.getElementById('clearFilter').addEventListener('click', ()=>{
+    document.getElementById('filterYear').value='';
+    document.getElementById('filterMonth').value='';
+    renderEntries();
+  });
+  document.getElementById('filterYear').addEventListener('change', renderEntries);
+  document.getElementById('filterMonth').addEventListener('change', renderEntries);
+  document.getElementById('deleteMonthBtn').addEventListener('click', async ()=>{
+    const fy = document.getElementById('filterYear').value;
+    const fm = document.getElementById('filterMonth').value;
+    if(!fy || !fm){ showToast('請先於「篩選月份」選擇明確的年份與月份，再執行整月刪除'); return; }
+    const target = state.entries.filter(e=> String(e.year)===String(fy) && String(e.month)===String(fm));
+    if(!target.length){ showToast(`${fy}年${fm}月 目前沒有資料可刪除`); return; }
+    const ok = await showConfirm(`確定要刪除 ${fy}年${fm}月 全部 ${target.length} 筆收支明細嗎？\n此動作無法復原。`, {okLabel:"刪除", danger:true});
+    if(!ok) return;
+    state.entries = state.entries.filter(e=> !(String(e.year)===String(fy) && String(e.month)===String(fm)));
+    await saveEntries();
+    renderEntries(); renderMonthPL();
+    showToast(`已刪除 ${fy}年${fm}月 共 ${target.length} 筆資料`);
+  });
+
+  document.getElementById('addInvBtn').addEventListener('click', async ()=>{
+    const year=document.getElementById('iYear').value;
+    const month=document.getElementById('iMonth').value;
+    const code=document.getElementById('iCode').value;
+    const open=document.getElementById('iOpen').value||0;
+    const purchase=document.getElementById('iPurchase').value||0;
+    const close=document.getElementById('iClose').value||0;
+    if(!year||!month||!code){ showToast('請填寫年、月，並選擇品項'); return; }
+    state.inventory.push({id:uid(), year:Number(year), month:Number(month), code, open:Number(open), purchase:Number(purchase), close:Number(close)});
+    await saveInventory();
+    document.getElementById('iOpen').value='';
+    document.getElementById('iPurchase').value='';
+    document.getElementById('iClose').value='';
+    renderInventory(); renderMonthPL();
+  });
+
+  document.getElementById('addProductBtn').addEventListener('click', async ()=>{
+    const category = document.getElementById('pCategory').value;
+    const code = document.getElementById('pCode').value;
+    const name = document.getElementById('pName').value.trim();
+    const unitCost = Number(document.getElementById('pUnitCost').value)||0;
+    const unitsPerBox = Number(document.getElementById('pUnitsPerBox').value)||0;
+    const boxesPerCarton = Number(document.getElementById('pBoxesPerCarton').value)||0;
+    const manufacturer = document.getElementById('pManufacturer').value.trim();
+    const manufacturerAddress = document.getElementById('pManufacturerAddress').value.trim();
+    if(!code || !name){ showToast('請選擇會計科目並填寫產品品名'); return; }
+    const idx = state.brandProducts.findIndex(p=>p.code===code);
+    const record = {category, code, name, unitCost, unitsPerBox, boxesPerCarton, manufacturer, manufacturerAddress};
+    if(idx>=0){ state.brandProducts[idx] = record; } else { state.brandProducts.push(record); }
+    await saveBrandProducts();
+    document.getElementById('pName').value='';
+    document.getElementById('pUnitCost').value='';
+    document.getElementById('pUnitsPerBox').value='';
+    document.getElementById('pBoxesPerCarton').value='';
+    document.getElementById('pManufacturer').value='';
+    document.getElementById('pManufacturerAddress').value='';
+    renderProductCards();
+    showToast(idx>=0 ? '已更新品項資料卡片' : '已新增品項資料卡片');
+  });
+
+  document.getElementById('brandReportYear').addEventListener('change', renderBrandInventoryReport);
+  document.getElementById('brandReportHalf').addEventListener('change', renderBrandInventoryReport);
+
+  document.getElementById('targetYear').addEventListener('change', renderTargetForm);
+  document.getElementById('saveTargetsBtn').addEventListener('click', async ()=>{
+    const year = document.getElementById('targetYear').value;
+    const obj = {};
+    for(let m=1;m<=12;m++){
+      const v = document.getElementById('target-'+m).value;
+      if(v!=='' && v!=null) obj[m] = Number(v);
+    }
+    state.annualTargets[year] = obj;
+    await saveAnnualTargets();
+    renderTargetsList();
+    showToast(`已儲存 ${year} 年度目標`);
+  });
+
+  document.getElementById('addAccountBtn').addEventListener('click', async ()=>{
+    const code=document.getElementById('cCode').value.trim();
+    const type=document.getElementById('cType').value;
+    const name=document.getElementById('cName').value.trim();
+    const group=document.getElementById('cGroup').value;
+    if(!code||!name){ showToast('請填寫科目代號與名稱'); return; }
+
+    if(editingAccountCode){
+      const idx = state.accounts.findIndex(a=>a.code===editingAccountCode);
+      const oldNote = idx>=0 ? state.accounts[idx].note : '';
+      if(idx>=0){ state.accounts[idx] = {code:editingAccountCode, name, type, group, note:oldNote}; }
+      await saveAccounts();
+      editingAccountCode = null;
+      document.getElementById('cCode').disabled = false;
+      document.getElementById('addAccountBtn').textContent = '新增科目';
+      document.getElementById('accountEditWarning').style.display = 'none';
+      showToast('已更新科目');
+    } else {
+      if(findAccount(code)){ showToast('此科目代號已存在'); return; }
+      state.accounts.push({code,name,type,group,note:'自訂科目'});
+      await saveAccounts();
+      showToast('已新增科目');
+    }
+    document.getElementById('cCode').value='';
+    document.getElementById('cName').value='';
+    renderAccounts();
+    document.getElementById('fAccount').innerHTML = accountOptionsGrouped();
+    document.getElementById('iCode').innerHTML = inventoryAccountOptions();
+    document.getElementById('pCode').innerHTML = inventoryAccountOptions();
+    renderMonthPL();
+  });
+}
+
+/* ---------- login & boot ---------- */
+let eventsBound = false;
+
+async function attemptLogin(){
+  const pwd = document.getElementById('loginPassword').value;
+  const roleKey = Object.keys(ROLES).find(k=>ROLES[k].password===pwd);
+  const errEl = document.getElementById('loginError');
+  if(!roleKey){
+    errEl.textContent = '密碼錯誤，請重新輸入';
+    return;
+  }
+  errEl.textContent = '';
+  currentRole = roleKey;
+  document.getElementById('loginOverlay').style.display = 'none';
+  document.getElementById('appRoot').style.display = 'block';
+  await boot();
+}
+
+async function logout(){
+  const ok = await showConfirm('確定要登出嗎？', {okLabel:"登出"});
+  if(!ok) return;
+  stopAutoSync();
+  currentRole = null;
+  document.getElementById('appRoot').style.display = 'none';
+  document.getElementById('loginOverlay').style.display = 'flex';
+  document.getElementById('loginPassword').value = '';
+  document.getElementById('loginError').textContent = '';
+  document.getElementById('loginPassword').focus();
+}
+
+async function boot(){
+  await loadAll();
+  refreshAllSelectors();
+  if(!eventsBound){ bindEvents(); eventsBound = true; }
+  applyRolePermissions();
+}
+
+document.getElementById('loginBtn').addEventListener('click', attemptLogin);
+document.getElementById('loginPassword').addEventListener('keydown', (e)=>{ if(e.key==='Enter') attemptLogin(); });
+document.getElementById('logoutBtn').addEventListener('click', logout);
+document.getElementById('exportExcelBtn').addEventListener('click', exportAllDataToExcel);
+document.getElementById('saveCloudUrlBtn').addEventListener('click', async ()=>{
+  state.settings.cloudSyncUrl = document.getElementById('cloudSyncUrl').value.trim();
+  await saveSettings();
+  showToast('已儲存同步網址，之後資料異動將自動同步');
+  if(state.settings.cloudSyncUrl) syncToCloud(false);
+});
+document.getElementById('syncCloudBtn').addEventListener('click', ()=> syncToCloud(false));
+document.getElementById('autoSyncToggle').addEventListener('change', async (e)=>{
+  state.settings.autoSyncEnabled = e.target.checked;
+  await saveSettings();
+  if(e.target.checked){ startAutoSync(); } else { stopAutoSync(); document.getElementById('cloudSyncStatus').textContent = '自動同步已關閉'; }
+});
+document.getElementById('loginPassword').focus();
+</script>
+</body>
+</html>
