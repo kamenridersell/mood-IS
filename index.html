@@ -320,7 +320,7 @@
       <div class="role-badge" id="roleBadge"></div>
       <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; justify-content:flex-end;">
         <button class="btn ghost small" id="pullCloudBtn">⬇ 從雲端載入</button>
-        <button class="btn ghost small" id="syncCloudBtn">⬆ 推送至雲端</button>
+        <button class="btn ghost small" id="syncCloudBtn" title="需先成功執行過「從雲端載入」才能推送">⬆ 推送至雲端</button>
         <button class="btn ghost small" id="exportExcelBtn">匯出Excel</button>
         <button class="btn ghost small" id="logoutBtn">登出</button>
       </div>
@@ -1835,15 +1835,23 @@ function buildCloudSyncPayload(){
 }
 
 let autoSyncTimer = null;
-const AUTO_SYNC_INTERVAL_MS = 5 * 60 * 1000; // 5 分鐘（備援用的定期同步，非必要）
+const AUTO_SYNC_INTERVAL_MS = 60 * 1000; // 每 1 分鐘檢查一次是否有異動待推送
 let changeSyncDebounce = null;
 const CHANGE_SYNC_DELAY_MS = 2000; // 資料異動後，等待2秒無其他異動再同步，避免連續操作時瘋狂發送請求
 let suppressAutoSync = false; // PULL 期間暫停 PUSH，避免拉取後立刻又推送造成不必要的往返
+
+let hasPulledSuccessfully = false; // 本次連線是否已成功執行過「從雲端載入」；未達成前禁止推送，避免用空白/舊本機資料覆蓋雲端
 
 async function syncToCloud(silent){
   const url = (state.settings.cloudSyncUrl || document.getElementById('cloudSyncUrl').value || '').trim();
   const statusEl = document.getElementById('cloudSyncStatus');
   if(!url){ if(!silent) showToast('請先貼上您的 Google Apps Script 網址並儲存'); return; }
+  if(!hasPulledSuccessfully){
+    const msg = '尚未成功從雲端載入過最新資料，為避免用空白或過期的本機資料覆蓋雲端，暫時無法推送。請先按「⬇ 從雲端載入」。';
+    if(statusEl) statusEl.textContent = msg;
+    await showAlert(msg);
+    return;
+  }
   if(statusEl) statusEl.textContent = '推送中（本機 → 雲端）...';
   try{
     await fetch(url, {
@@ -1950,6 +1958,9 @@ async function pullFromCloud(silent){
     const timeStr = new Date().toLocaleString('zh-TW');
     if(statusEl) statusEl.textContent = `已於 ${timeStr} 從雲端讀取最新資料並覆蓋本機`;
     if(!silent) showToast('已從雲端載入最新資料');
+    hasPulledSuccessfully = true; // 成功讀取過一次後，才允許推送
+    document.getElementById('syncCloudBtn').disabled = false;
+    startAutoSync(); // 成功載入後才開始定期檢查是否有異動要自動推送
     return true;
   }catch(err){
     if(statusEl) statusEl.textContent = '讀取失敗：' + err.message;
@@ -1958,14 +1969,25 @@ async function pullFromCloud(silent){
   }
 }
 
-// ⚠️ 自動同步已停用（曾造成資料被定期清空的問題），改為只保留手動推送/讀取按鈕。
-// 此函式保留但不再做任何事，避免其他地方呼叫時出錯。
+let isDirty = false; // 是否有資料異動尚未推送
+
+// 每次資料異動（新增/編輯/刪除）呼叫，只標記「有異動待同步」，實際推送交給下方每分鐘的定期檢查
 function scheduleAutoSyncOnChange(){
-  return; // 已停用：資料異動不再自動推送，請使用「⬆ 推送至雲端」按鈕手動觸發
+  if(suppressAutoSync) return; // PULL 套用資料期間不算異動，避免拉取後誤判為異動又推送回去
+  isDirty = true;
+  const statusEl = document.getElementById('cloudSyncStatus');
+  if(statusEl && hasPulledSuccessfully) statusEl.textContent = '偵測到資料異動，將於約1分鐘內自動推送至雲端...';
 }
 
 function startAutoSync(){
-  return; // 已停用：不再提供定期自動同步
+  stopAutoSync();
+  autoSyncTimer = setInterval(async ()=>{
+    if(!isDirty) return; // 沒有異動就不做任何事
+    if(!hasPulledSuccessfully) return; // 尚未成功載入過雲端資料前，不自動推送
+    if(!state.settings.cloudSyncUrl) return;
+    isDirty = false;
+    await syncToCloud(true);
+  }, AUTO_SYNC_INTERVAL_MS);
 }
 function stopAutoSync(){
   if(autoSyncTimer){ clearInterval(autoSyncTimer); autoSyncTimer = null; }
@@ -2393,8 +2415,13 @@ async function attemptLogin(){
 async function logout(){
   const ok = await showConfirm('確定要登出嗎？', {okLabel:"登出"});
   if(!ok) return;
+  if(isDirty && hasPulledSuccessfully && state.settings.cloudSyncUrl){
+    await syncToCloud(true); // 登出前，把還沒推送的異動先送出，避免異動留在本機沒同步到
+  }
   stopAutoSync();
   currentRole = null;
+  hasPulledSuccessfully = false; // 每次登出重置，下次登入須重新載入一次雲端資料才能推送
+  isDirty = false;
   document.getElementById('appRoot').style.display = 'none';
   document.getElementById('loginOverlay').style.display = 'flex';
   document.getElementById('loginPassword').value = '';
@@ -2404,11 +2431,16 @@ async function logout(){
 
 async function boot(){
   await loadAll();
-  // ⚠️ 已停用登入時自動讀取雲端資料（曾造成資料被定期清空的問題）。
-  // 如需從雲端載入最新資料，請至【資料登錄】→【年度目標登錄】頁手動按「⬇ 從雲端載入」。
   refreshAllSelectors();
   if(!eventsBound){ bindEvents(); eventsBound = true; }
   applyRolePermissions();
+  hasPulledSuccessfully = false;
+  document.getElementById('syncCloudBtn').disabled = true; // 推送鈕先鎖定，等自動載入成功後才解鎖
+  // 開啟系統時自動從雲端載入一次最新資料。PULL 走 doGet，結構上完全不會寫入/清空試算表，
+  // 可安全自動執行；成功後才會解除「推送至雲端」的鎖定。
+  if(state.settings.cloudSyncUrl){
+    pullFromCloud(true);
+  }
 }
 
 document.getElementById('loginBtn').addEventListener('click', attemptLogin);
