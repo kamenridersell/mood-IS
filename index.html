@@ -1970,7 +1970,10 @@ function buildCloudSyncPayload(){
     })),
     accounts: state.accounts.map(a=>({ code:a.code, name:a.name, type:a.type, group:(GROUPS.find(g=>g.key===a.group)||{}).label||a.group, note:a.note||'' })),
     annualTargets: state.annualTargets,
-    publishedMonths: state.settings.publishedMonths || {}
+    referenceYears: state.referenceYears,
+    publishedMonths: state.settings.publishedMonths || {},
+    taxMonths: state.settings.taxMonths || {},
+    taxRate: state.settings.rate
   };
 }
 
@@ -2073,6 +2076,19 @@ async function pullFromCloud(silent){
       });
       state.annualTargets = targets;
 
+      const refYears = {};
+      (data.refYearsRaw||[]).forEach(r=>{
+        const year = String(r['年度']||'').trim();
+        if(!year) return;
+        const obj = {};
+        for(let m=1;m<=12;m++){
+          const v = r[`${m}月`];
+          if(v!=='' && v!=null) obj[m] = Number(v);
+        }
+        refYears[year] = obj;
+      });
+      state.referenceYears = refYears;
+
       const pub = {};
       (data.pubRaw||[]).forEach(r=>{
         const y = r['年'], m = r['月'];
@@ -2081,11 +2097,21 @@ async function pullFromCloud(silent){
       });
       state.settings.publishedMonths = pub;
 
+      const taxMonths = {};
+      (data.taxRaw||[]).forEach(r=>{
+        const y = r['年'], m = r['月'];
+        if(y==null || m==null) return;
+        taxMonths[`${y}-${m}`] = r['本月計提']==='是';
+        if(r['稅率(%)']!=null && r['稅率(%)']!=='') state.settings.rate = Number(r['稅率(%)']);
+      });
+      state.settings.taxMonths = taxMonths;
+
       await saveEntries();
       await saveInventory();
       await saveBrandProducts();
       await saveAccounts();
       await saveAnnualTargets();
+      await saveReferenceYears();
       await saveSettings();
     } finally {
       suppressAutoSync = false;
