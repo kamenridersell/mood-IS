@@ -478,6 +478,7 @@
   <div class="view" id="major-dataEntry">
     <div class="subtabs" id="dataSubtabs">
       <div class="subtab" data-sub="targets">年度目標登錄</div>
+      <div class="subtab" data-sub="refYears">歷史年度資料登錄</div>
       <div class="subtab active" data-sub="entries" style="position:relative;">每月收支登錄<span style="position:absolute; top:-8px; right:-6px; font-size:12px; transform:rotate(45deg); display:inline-block;">👑</span></div>
       <div class="subtab" data-sub="inventory">品牌庫存登錄</div>
       <div class="subtab" data-sub="productCards">品牌庫存卡登錄</div>
@@ -503,7 +504,10 @@
         <div class="footnote" style="margin-top:10px;">管理各年度目標：</div>
         <div id="targetsManageList" style="display:flex; flex-wrap:wrap; gap:8px; margin-top:8px;"></div>
       </div>
+    </div>
 
+    <!-- ---- 歷史年度資料登錄 ---- -->
+    <div class="subview" id="sub-refYears">
       <div class="panel">
         <div class="panel-title">歷史年度資料登錄<span class="hint">呈現於營業收入趨勢圖（比較用參考線）</span></div>
         <div class="footnote" style="margin-bottom:12px;">用於登錄非系統內建資料的歷史年度營業收入（例如尚未使用本系統前的 2025 年資料）。2025 年資料登錄後會自動顯示於「營業收入趨勢」圖表中，不需另外選取，不計入任何損益計算。</div>
@@ -744,7 +748,6 @@ function showAlert(message){
    ============================================================ */
 const ROLES = {
   shareholder: { label:"股東代表", password:"111111", tabs:["reports"], canEdit:false },
-  finance:     { label:"財務會計", password:"888888", tabs:["reports","dataEntry"], canEdit:true },
   admin:       { label:"系統管理者", password:"123458", tabs:["reports","dataEntry"], canEdit:true },
 };
 let currentRole = null;
@@ -1938,6 +1941,21 @@ function exportAllDataToExcel(){
   });
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(targetRows.length?targetRows:[{提示:'尚無資料'}]), '年度目標');
 
+  // ⑤-2 歷史年度資料登錄
+  const refYearsKeys = Object.keys(state.referenceYears).sort();
+  const refRows = refYearsKeys.map(y=>{
+    const t = state.referenceYears[y]||{};
+    const row = { 年度: y };
+    let total = 0;
+    for(let m=1;m<=12;m++){
+      row[`${m}月`] = t[m]!=null ? Number(t[m]) : '';
+      if(t[m]!=null) total += Number(t[m])||0;
+    }
+    row['全年合計'] = total;
+    return row;
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(refRows.length?refRows:[{提示:'尚無資料'}]), '歷史年度資料');
+
   // ⑥ 損益表發布狀態
   const pubKeys = Object.keys(state.settings.publishedMonths||{}).sort();
   const pubRows = pubKeys.map(k=>{
@@ -1945,6 +1963,14 @@ function exportAllDataToExcel(){
     return { 年: y, 月: m, 已發布: state.settings.publishedMonths[k] ? '是' : '否' };
   });
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(pubRows.length?pubRows:[{提示:'尚無資料'}]), '損益表發布狀態');
+
+  // ⑦ 營所稅計提設定
+  const taxKeys = Object.keys(state.settings.taxMonths||{}).sort();
+  const taxRows = taxKeys.map(k=>{
+    const [y,m] = k.split('-');
+    return { 年: y, 月: m, 本月計提: state.settings.taxMonths[k] ? '是' : '否', '稅率(%)': state.settings.rate };
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(taxRows.length?taxRows:[{提示:'尚無資料'}]), '營所稅計提設定');
 
   const todayStr = new Date().toISOString().slice(0,10).replace(/-/g,'');
   XLSX.writeFile(wb, `MOOD損益表系統_資料匯出_${todayStr}.xlsx`);
@@ -2388,7 +2414,8 @@ function bindEvents(){
         if(t.dataset.sub==='plMonth') renderMonthPL();
         if(t.dataset.sub==='plYear') renderYearPL();
         if(t.dataset.sub==='entries') renderEntries();
-        if(t.dataset.sub==='targets'){ renderTargetForm(); renderTargetsList(); renderRefForm(); renderRefManageList(); }
+        if(t.dataset.sub==='targets'){ renderTargetForm(); renderTargetsList(); }
+        if(t.dataset.sub==='refYears'){ renderRefForm(); renderRefManageList(); }
         if(t.dataset.sub==='productCards') renderProductCards();
         if(t.dataset.sub==='inventory') renderInventory();
         if(t.dataset.sub==='accounts') renderAccounts();
